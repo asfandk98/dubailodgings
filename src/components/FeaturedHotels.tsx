@@ -27,9 +27,10 @@ export default function FeaturedHotels({ hotels }: Props) {
         <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6">
           {hotels.map((hotel) => {
             const slug = hotel.slug ?? hotel.id;
-            const image = toAbsoluteImageUrl(
-              hotel.image ?? hotel.image_url ?? hotel.thumbnail ?? ""
-            );
+           const image =
+  toAbsoluteImageUrl(
+    hotel.image ?? hotel.image_url ?? hotel.thumbnail ?? ""
+  ) ?? "/images/hotel-placeholder.jpg";
             const name = hotel.name ?? hotel.title ?? "Luxury Hotel";
             const location = hotel.location ?? hotel.city ?? "UAE";
             const price = hotel.price ?? hotel.active_price ?? hotel.pricePerNight ?? 0;

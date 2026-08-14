@@ -39,13 +39,13 @@ export interface AdminHotel {
   rating?: number;
   status: "active" | "draft";
   featured: boolean;
-  image?: string;
+  image?: string | null;
+  image_url?: string | null;
   amenities?: string[];
   guests?: string | number;
   description?: string;
   rooms?: unknown[];
 }
-
 export const getAdminHotels = () =>
   httpClient.get<{ data?: AdminHotel[] } | AdminHotel[]>("/admin/hotels");
 

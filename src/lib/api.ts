@@ -155,23 +155,39 @@ export async function getFilters(): Promise<HotelFilters> {
 
 export interface HotelRoom {
   id?: string | number;
+  hotel_id?: string | number;
+
   slug?: string;
   name?: string;
   title?: string;
   description?: string;
   tag?: string;
+
   size_sqm?: number;
   size_sqft?: number;
   size?: string;
-  beds?: number;
-  capacity?: string;
+
+  beds?: number | string;
+  capacity?: string | number;
+
+  // Base price
   price?: number | string;
+
+  // Seasonal / active pricing
+  active_price?: number | string;
+  original_price?: number | string;
+
+  // Offer information
+  is_on_offer?: boolean;
+  discount_percent?: number | string;
+
+  // Images
   image?: string;
   image_url?: string;
-  images?: ImageItem[];
+  images?: (string | ImageItem)[];
+
   amenities?: string[];
 }
-
 export interface SeasonalPrice {
   id: string | number;
   start_date: string;

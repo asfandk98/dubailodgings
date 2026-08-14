@@ -1,6 +1,6 @@
 "use client";
 
-import { DateRange, type Range } from "react-date-range";
+import { DateRange, type Range, type RangeKeyDict } from "react-date-range";
 import { useState, useEffect, useCallback, useRef } from "react";
 import "react-date-range/dist/styles.css";
 import "react-date-range/dist/theme/default.css";
@@ -104,21 +104,30 @@ export default function DateSelector({
     return Math.max(0, Math.ceil((e.getTime() - s.getTime()) / (1000 * 60 * 60 * 24)));
   })();
 
-  const handleChange = (item: { selection: Range }) => {
-    const { startDate, endDate } = item.selection;
-    if (!isRangeValid(startDate, endDate)) {
-      alert("Some selected dates are unavailable. Please choose different dates.");
-      return;
-    }
-    setRange([{ startDate, endDate, key: "selection" }]);
-    const validNights =
-      startDate && endDate ? Math.ceil((endDate.getTime() - startDate.getTime()) / (1000 * 60 * 60 * 24)) : 0;
-    if (validNights > 0 && startDate && endDate) {
-      setDates({ startDate, endDate });
-    } else {
-      setDates(null);
-    }
-  };
+ const handleChange = (item: RangeKeyDict) => {
+  const { startDate, endDate } = item.selection;
+
+  if (!isRangeValid(startDate, endDate)) {
+    alert("Some selected dates are unavailable. Please choose different dates.");
+    return;
+  }
+
+  setRange([{ startDate, endDate, key: "selection" }]);
+
+  const validNights =
+    startDate && endDate
+      ? Math.ceil(
+          (endDate.getTime() - startDate.getTime()) /
+            (1000 * 60 * 60 * 24)
+        )
+      : 0;
+
+  if (validNights > 0 && startDate && endDate) {
+    setDates({ startDate, endDate });
+  } else {
+    setDates(null);
+  }
+};
 
   return (
     <div className="relative">

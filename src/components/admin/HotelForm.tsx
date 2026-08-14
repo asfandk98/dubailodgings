@@ -39,25 +39,29 @@ export default function HotelForm({ hotelId }: { hotelId?: string }) {
 
   useEffect(() => {
     if (!hotelId) return;
-    getAdminHotel(hotelId)
-      .then((res) => {
-        const data: AdminHotel = res.data;
-        setForm({
-          title: data.title ?? "",
-          location: data.location ?? "",
-          price: String(data.price ?? ""),
-          type: data.type ?? "Luxury",
-          guests: String(data.guests ?? "2"),
-          rating: data.rating != null ? String(data.rating) : "",
-          description: data.description ?? "",
-          status: data.status ?? "draft",
-          featured: !!data.featured,
-          amenities: Array.isArray(data.amenities) ? data.amenities : [],
-        });
-        if (data.image) setImagePreview(`${data.image_url ?? ""}`);
-      })
-      .catch(() => toast.error("Failed to load hotel"))
-      .finally(() => setLoading(false));
+   getAdminHotel(hotelId)
+  .then((res) => {
+    const data: AdminHotel = res.data;
+
+    setForm({
+      title: data.title ?? "",
+      location: data.location ?? "",
+      price: String(data.price ?? ""),
+      type: data.type ?? "Luxury",
+      guests: String(data.guests ?? "2"),
+      rating: data.rating != null ? String(data.rating) : "",
+      description: data.description ?? "",
+      status: data.status ?? "draft",
+      featured: !!data.featured,
+      amenities: Array.isArray(data.amenities) ? data.amenities : [],
+    });
+
+    if (data.image_url) {
+      setImagePreview(data.image_url);
+    }
+  })
+  .catch(() => toast.error("Failed to load hotel"))
+  .finally(() => setLoading(false));
   }, [hotelId]);
 
   const handleChange = (e: React.ChangeEvent<HTMLInputElement | HTMLTextAreaElement | HTMLSelectElement>) => {
