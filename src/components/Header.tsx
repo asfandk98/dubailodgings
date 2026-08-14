@@ -21,6 +21,7 @@ interface AuthUser {
 export default function Header() {
   const pathname = usePathname();
   const router = useRouter();
+
   const [drawerOpen, setDrawerOpen] = useState(false);
   const [accountOpen, setAccountOpen] = useState(false);
   const [user, setUser] = useState<AuthUser | null>(null);
@@ -33,13 +34,16 @@ export default function Header() {
     } catch {
       setUser(null);
     }
+
     setRole(localStorage.getItem("role"));
   };
 
   useEffect(() => {
     readAuth();
+
     window.addEventListener("auth-change", readAuth);
     window.addEventListener("storage", readAuth);
+
     return () => {
       window.removeEventListener("auth-change", readAuth);
       window.removeEventListener("storage", readAuth);
@@ -52,7 +56,8 @@ export default function Header() {
   }, [pathname]);
 
   const isLoggedIn = !!user;
-  const dashboardHref = role === "admin" ? "/admin/dashboard" : "/dashboard";
+  const dashboardHref =
+    role === "admin" ? "/admin/dashboard" : "/dashboard";
 
   const handleLogout = async () => {
     try {
@@ -61,88 +66,226 @@ export default function Header() {
     } catch {
       toast.error("Logout request failed, signing out locally");
     }
+
     localStorage.clear();
     window.dispatchEvent(new Event("auth-change"));
+
     setAccountOpen(false);
+    setDrawerOpen(false);
+
     router.push("/");
+  };
+
+  const closeDrawer = () => {
+    setDrawerOpen(false);
   };
 
   return (
     <>
-      <header className="fixed top-0 w-full z-50 bg-surface/80 backdrop-blur-md border-b border-outline-variant">
-        <div className="flex justify-between items-center h-20 px-gutter max-w-container-max mx-auto">
-          <div className="flex items-center gap-4">
-            <button onClick={() => setDrawerOpen(true)} className="md:hidden text-primary" aria-label="Open menu">
-              <span className="material-symbols-outlined">menu</span>
+      {/* ================= HEADER ================= */}
+      <header className="fixed top-0 left-0 right-0 z-50 w-full bg-surface/90 backdrop-blur-md border-b border-outline-variant">
+        <div className="flex items-center justify-between h-16 sm:h-18 md:h-20 px-4 sm:px-6 md:px-gutter max-w-container-max mx-auto">
+          
+          {/* LEFT SIDE */}
+          <div className="flex items-center min-w-0">
+            
+            {/* Mobile Menu Button */}
+            <button
+              onClick={() => setDrawerOpen(true)}
+              className="md:hidden flex items-center justify-center w-10 h-10 mr-2 text-primary shrink-0"
+              aria-label="Open menu"
+            >
+              <span className="material-symbols-outlined text-[24px]">
+                menu
+              </span>
             </button>
-            <Link href="/" className="font-display-lg-mobile text-display-lg-mobile md:font-display-lg md:text-display-lg text-primary tracking-tight">
+
+            {/* Logo */}
+            <Link
+              href="/"
+              className="
+                text-primary
+                tracking-tight
+                font-display-lg-mobile
+                text-[16px]
+                xs:text-[18px]
+                sm:text-[20px]
+                md:font-display-lg
+                md:text-display-lg
+                whitespace-nowrap
+                leading-none
+              "
+            >
               DUBAILODGINGS.COM
             </Link>
           </div>
 
-          <nav className="hidden md:flex gap-8 items-center">
-            <Link href="/hotels" className="text-on-surface-variant hover:text-secondary transition-colors duration-300 font-label-caps">
+          {/* ================= DESKTOP NAV ================= */}
+          <nav className="hidden md:flex gap-6 lg:gap-8 items-center">
+            <Link
+              href="/hotels"
+              className="text-on-surface-variant hover:text-secondary transition-colors duration-300 font-label-caps"
+            >
               HOTELS
             </Link>
+
             <span className="text-on-surface-variant hover:text-secondary transition-colors duration-300 cursor-pointer font-label-caps">
               PLANNER
             </span>
+
             {isLoggedIn && (
-              <Link href="/dashboard/bookings" className="text-primary font-bold hover:text-secondary transition-colors duration-300 font-label-caps">
+              <Link
+                href="/dashboard/bookings"
+                className="text-primary font-bold hover:text-secondary transition-colors duration-300 font-label-caps"
+              >
                 MY BOOKINGS
               </Link>
             )}
           </nav>
 
-          <div className="flex items-center gap-4">
+          {/* ================= RIGHT SIDE ================= */}
+          <div className="flex items-center gap-1 sm:gap-3 shrink-0">
+
             {isLoggedIn ? (
               <div className="relative">
                 <button
-                  onClick={() => setAccountOpen((o) => !o)}
-                  className="flex items-center gap-2 text-primary cursor-pointer active:opacity-70"
+                  onClick={() => setAccountOpen((open) => !open)}
+                  className="
+                    flex
+                    items-center
+                    justify-center
+                    gap-1.5
+                    sm:gap-2
+                    min-w-10
+                    h-10
+                    px-1
+                    sm:px-2
+                    text-primary
+                    cursor-pointer
+                    active:opacity-70
+                  "
+                  aria-label="Account menu"
+                  aria-expanded={accountOpen}
                 >
-                  <span className="material-symbols-outlined">account_circle</span>
-                  <span className="hidden sm:block font-label-caps text-[12px]">{user?.name?.split(" ")[0]}</span>
-                  <span className="material-symbols-outlined text-[18px]">expand_more</span>
+                  <span className="material-symbols-outlined text-[24px]">
+                    account_circle
+                  </span>
+
+                  {/* Hide username on very small screens */}
+                  <span className="hidden sm:block font-label-caps text-[12px] max-w-[100px] truncate">
+                    {user?.name?.split(" ")[0]}
+                  </span>
+
+                  <span className="hidden sm:block material-symbols-outlined text-[18px]">
+                    expand_more
+                  </span>
                 </button>
 
                 {accountOpen && (
                   <>
-                    <div className="fixed inset-0 z-40" onClick={() => setAccountOpen(false)} />
-                    <div className="absolute right-0 mt-2 w-56 bg-white border border-outline-variant shadow-2xl z-50 rounded-lg overflow-hidden">
+                    {/* Backdrop */}
+                    <div
+                      className="fixed inset-0 z-40"
+                      onClick={() => setAccountOpen(false)}
+                    />
+
+                    {/* Account Dropdown */}
+                    <div
+                      className="
+                        absolute
+                        right-0
+                        mt-2
+                        w-[calc(100vw-2rem)]
+                        max-w-56
+                        bg-white
+                        border
+                        border-outline-variant
+                        shadow-2xl
+                        z-50
+                        rounded-lg
+                        overflow-hidden
+                      "
+                    >
                       <Link
                         href={dashboardHref}
-                        className="flex items-center gap-3 px-4 py-3 text-on-surface hover:bg-surface-container-low transition-colors"
+                        className="flex items-center gap-3 px-4 py-3.5 text-on-surface hover:bg-surface-container-low transition-colors"
                       >
-                        <span className="material-symbols-outlined text-[20px]">dashboard</span>
-                        <span className="font-body-sm">{role === "admin" ? "Admin Dashboard" : "Dashboard"}</span>
+                        <span className="material-symbols-outlined text-[20px]">
+                          dashboard
+                        </span>
+
+                        <span className="font-body-sm">
+                          {role === "admin"
+                            ? "Admin Dashboard"
+                            : "Dashboard"}
+                        </span>
                       </Link>
+
                       <Link
                         href="/dashboard/bookings"
-                        className="flex items-center gap-3 px-4 py-3 text-on-surface hover:bg-surface-container-low transition-colors"
+                        className="flex items-center gap-3 px-4 py-3.5 text-on-surface hover:bg-surface-container-low transition-colors"
                       >
-                        <span className="material-symbols-outlined text-[20px]">event_available</span>
-                        <span className="font-body-sm">My Bookings</span>
+                        <span className="material-symbols-outlined text-[20px]">
+                          event_available
+                        </span>
+
+                        <span className="font-body-sm">
+                          My Bookings
+                        </span>
                       </Link>
+
                       <button
                         onClick={handleLogout}
-                        className="w-full flex items-center gap-3 px-4 py-3 text-error hover:bg-error-container/20 transition-colors text-left border-t border-outline-variant"
+                        className="
+                          w-full
+                          flex
+                          items-center
+                          gap-3
+                          px-4
+                          py-3.5
+                          text-error
+                          hover:bg-error-container/20
+                          transition-colors
+                          text-left
+                          border-t
+                          border-outline-variant
+                        "
                       >
-                        <span className="material-symbols-outlined text-[20px]">logout</span>
-                        <span className="font-body-sm">Logout</span>
+                        <span className="material-symbols-outlined text-[20px]">
+                          logout
+                        </span>
+
+                        <span className="font-body-sm">
+                          Logout
+                        </span>
                       </button>
                     </div>
                   </>
                 )}
               </div>
             ) : (
-              <div className="hidden md:flex items-center gap-4">
-                <Link href="/login" className="font-label-caps text-[12px] text-on-surface-variant hover:text-secondary transition-colors">
+              /* Desktop Login/Register */
+              <div className="hidden md:flex items-center gap-3 lg:gap-4">
+                <Link
+                  href="/login"
+                  className="font-label-caps text-[12px] text-on-surface-variant hover:text-secondary transition-colors"
+                >
                   LOGIN
                 </Link>
+
                 <Link
                   href="/register"
-                  className="font-label-caps text-[12px] bg-primary text-on-primary px-5 py-2 hover:bg-secondary transition-colors"
+                  className="
+                    font-label-caps
+                    text-[12px]
+                    bg-primary
+                    text-on-primary
+                    px-4
+                    lg:px-5
+                    py-2.5
+                    hover:bg-secondary
+                    transition-colors
+                  "
                 >
                   REGISTER
                 </Link>
@@ -152,48 +295,175 @@ export default function Header() {
         </div>
       </header>
 
-      {/* Mobile drawer */}
+      {/* ================= MOBILE DRAWER ================= */}
       <div
-        className={`md:hidden fixed inset-0 z-[60] bg-black/60 backdrop-blur-sm transition-opacity duration-300 ${
-          drawerOpen ? "opacity-100 visible" : "opacity-0 invisible"
-        }`}
-        onClick={() => setDrawerOpen(false)}
+        className={`
+          md:hidden
+          fixed
+          inset-0
+          z-[60]
+          bg-black/60
+          backdrop-blur-sm
+          transition-all
+          duration-300
+          ${
+            drawerOpen
+              ? "opacity-100 visible"
+              : "opacity-0 invisible pointer-events-none"
+          }
+        `}
+        onClick={closeDrawer}
       >
+        {/* Drawer */}
         <div
           onClick={(e) => e.stopPropagation()}
-          className={`absolute top-0 left-0 h-full w-72 bg-surface transform transition-transform duration-300 flex flex-col ${
-            drawerOpen ? "translate-x-0" : "-translate-x-full"
-          }`}
+          className={`
+            absolute
+            top-0
+            left-0
+            h-full
+            w-[85%]
+            max-w-[320px]
+            bg-surface
+            shadow-2xl
+            transform
+            transition-transform
+            duration-300
+            flex
+            flex-col
+            ${
+              drawerOpen
+                ? "translate-x-0"
+                : "-translate-x-full"
+            }
+          `}
         >
-          <div className="flex items-center justify-between px-6 py-5 border-b border-outline-variant">
-            <span className="font-display-lg-mobile text-primary">MENU</span>
-            <button onClick={() => setDrawerOpen(false)} aria-label="Close menu">
-              <span className="material-symbols-outlined">close</span>
+          {/* Drawer Header */}
+          <div className="flex items-center justify-between px-5 sm:px-6 py-5 border-b border-outline-variant shrink-0">
+            <span className="font-display-lg-mobile text-primary text-[20px]">
+              MENU
+            </span>
+
+            <button
+              onClick={closeDrawer}
+              className="flex items-center justify-center w-10 h-10"
+              aria-label="Close menu"
+            >
+              <span className="material-symbols-outlined text-[24px]">
+                close
+              </span>
             </button>
           </div>
-          <nav className="flex flex-col px-6 py-6 gap-1">
-            {DRAWER_LINKS.map((link) => (
-              <Link key={link.href} href={link.href} className="py-3 font-label-caps border-b border-outline-variant/30 text-on-surface-variant">
-                {link.label}
-              </Link>
-            ))}
+
+          {/* Drawer Navigation */}
+          <nav className="flex-1 overflow-y-auto px-5 sm:px-6 py-5">
+            <div className="flex flex-col">
+              {DRAWER_LINKS.map((link) => (
+                <Link
+                  key={link.href}
+                  href={link.href}
+                  onClick={closeDrawer}
+                  className="
+                    flex
+                    items-center
+                    gap-4
+                    min-h-[52px]
+                    py-3
+                    border-b
+                    border-outline-variant/30
+                    text-on-surface-variant
+                    hover:text-secondary
+                    transition-colors
+                    font-label-caps
+                  "
+                >
+                  <span className="material-symbols-outlined text-[21px]">
+                    {link.icon}
+                  </span>
+
+                  <span>{link.label}</span>
+                </Link>
+              ))}
+            </div>
           </nav>
-          <div className="mt-auto px-6 py-6 border-t border-outline-variant flex flex-col gap-3">
+
+          {/* Drawer Bottom */}
+          <div className="px-5 sm:px-6 py-5 border-t border-outline-variant flex flex-col gap-3 shrink-0">
             {isLoggedIn ? (
               <>
-                <Link href={dashboardHref} className="text-center border-2 border-secondary text-secondary py-3 font-label-caps">
-                  {role === "admin" ? "ADMIN DASHBOARD" : "DASHBOARD"}
+                <Link
+                  href={dashboardHref}
+                  onClick={closeDrawer}
+                  className="
+                    flex
+                    items-center
+                    justify-center
+                    min-h-[48px]
+                    border-2
+                    border-secondary
+                    text-secondary
+                    py-3
+                    px-4
+                    font-label-caps
+                    text-center
+                  "
+                >
+                  {role === "admin"
+                    ? "ADMIN DASHBOARD"
+                    : "DASHBOARD"}
                 </Link>
-                <button onClick={handleLogout} className="text-center bg-primary text-on-primary py-3 font-label-caps">
+
+                <button
+                  onClick={handleLogout}
+                  className="
+                    min-h-[48px]
+                    bg-primary
+                    text-on-primary
+                    py-3
+                    px-4
+                    font-label-caps
+                    text-center
+                  "
+                >
                   LOGOUT
                 </button>
               </>
             ) : (
               <>
-                <Link href="/login" className="text-center border-2 border-secondary text-secondary py-3 font-label-caps">
+                <Link
+                  href="/login"
+                  onClick={closeDrawer}
+                  className="
+                    flex
+                    items-center
+                    justify-center
+                    min-h-[48px]
+                    border-2
+                    border-secondary
+                    text-secondary
+                    py-3
+                    px-4
+                    font-label-caps
+                  "
+                >
                   LOGIN
                 </Link>
-                <Link href="/register" className="text-center bg-primary text-on-primary py-3 font-label-caps">
+
+                <Link
+                  href="/register"
+                  onClick={closeDrawer}
+                  className="
+                    flex
+                    items-center
+                    justify-center
+                    min-h-[48px]
+                    bg-primary
+                    text-on-primary
+                    py-3
+                    px-4
+                    font-label-caps
+                  "
+                >
                   REGISTER
                 </Link>
               </>
