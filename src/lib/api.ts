@@ -26,6 +26,7 @@ export interface HotelProperty {
   is_on_offer?: boolean;
   currency?: string;
   rating?: number;
+  reviews_count?: number;
   image?: string;
   image_url?: string;
   thumbnail?: string;
