@@ -10,13 +10,23 @@ import DateSelector from "./DateSelector";
 
 declare global {
   interface Window {
-    Checkout?: { configure: (opts: unknown) => void; showPaymentPage: () => void };
-    paymentError?: (err: { cause?: string; explanation?: string }) => void;
+    Checkout?: {
+      configure: (opts: unknown) => void;
+      showPaymentPage: () => void;
+    };
+
+    paymentError?: (err: {
+      cause?: string;
+      explanation?: string;
+      [key: string]: unknown;
+    }) => void;
+
     paymentCancelled?: () => void;
+
     paymentComplete?: () => void;
   }
 }
-
+const [paymentOrderId, setPaymentOrderId] = useState<string | null>(null);
 function roomImage(room: HotelRoom | null): string | null {
   if (!room) return null;
   const first = room.images?.[0];
@@ -92,82 +102,152 @@ export default function ReserveClient({ hotel, initialRoom }: { hotel: HotelDeta
   const tourismFee = nights > 0 ? 4 * nights : 0;
   const total = subtotal + serviceCharge + vat + tourismFee;
 
-  useEffect(() => {
+ useEffect(() => {
   window.paymentError = (err) => {
-    console.log("MPGS paymentError raw:", JSON.stringify(err, null, 2));
-    setError("Payment failed: " + (err?.cause ?? err?.explanation ?? "Unknown error"));
+    console.error(
+      "MPGS paymentError:",
+      JSON.stringify(err, null, 2)
+    );
+
+    const message =
+      err?.explanation ||
+      err?.cause ||
+      "The payment could not be completed.";
+
+    setError(`Payment failed: ${message}`);
     setLoading(false);
   };
+
   window.paymentCancelled = () => {
-    setError("Payment was cancelled. You have not been charged.");
+    console.log("MPGS payment cancelled");
+
+    setError(
+      "Payment was cancelled. You have not been charged."
+    );
+
     setLoading(false);
   };
+
   window.paymentComplete = () => {
-    window.location.href = "/payment/result";
+    console.log("MPGS payment completed");
+
+    if (paymentOrderId) {
+      window.location.href =
+        `/payment/result?order_id=${encodeURIComponent(paymentOrderId)}`;
+    } else {
+      window.location.href = "/payment/result";
+    }
   };
+
   return () => {
     delete window.paymentError;
     delete window.paymentCancelled;
     delete window.paymentComplete;
   };
-}, []);
+}, [paymentOrderId]);
 
-  const loadMpgsAndPay = (sessionId: string, mpgsJsUrl: string) => {
-  const script = document.createElement("script");
-  script.src = mpgsJsUrl;
-  script.setAttribute("data-error", "paymentError");
-  script.setAttribute("data-cancel", "paymentCancelled");
-  script.setAttribute("data-complete", "paymentComplete");
-  script.onload = () => {
+  const loadMpgsAndPay = (
+  sessionId: string,
+  mpgsJsUrl: string,
+  orderId: string
+) => {
+  setPaymentOrderId(orderId);
+
+  const existingScript = document.querySelector(
+    `script[src="${mpgsJsUrl}"]`
+  ) as HTMLScriptElement | null;
+
+  const configureCheckout = () => {
     if (!window.Checkout) {
-      setError("Payment gateway failed to load. Please try again.");
+      setError(
+        "Payment gateway failed to initialize. Please try again."
+      );
       setLoading(false);
       return;
     }
-    window.Checkout.configure({
-      session: { id: sessionId },
-    });
-    window.Checkout.showPaymentPage();
-  };
-  script.onerror = () => {
-    setError("Could not connect to payment gateway. Please try again.");
-    setLoading(false);
-  };
-  document.body.appendChild(script);
-};
-  const handleConfirm = async () => {
-    if (!dates || nights === 0 || loading) return;
-
-    const token = localStorage.getItem("token");
-    if (!token) {
-      sessionStorage.setItem("redirect_after_login", window.location.pathname + window.location.search);
-      router.push("/login");
-      return;
-    }
-
-    setLoading(true);
-    setError(null);
 
     try {
-      const data = await initiatePayment({
-        total,
-        email,
-        hotel_id: hotel.id,
-        room_id: selectedRoom?.id ?? null,
-        check_in: dates.startDate.toISOString().split("T")[0],
-        check_out: dates.endDate.toISOString().split("T")[0],
-        guests: { adults, children },
-        night_rate: nightRate,
-        seasonal_price_id: activeSeasonal?.id ?? null,
-        description: `${hotel.title}${selectedRoom ? ` — ${selectedRoom.name}` : ""} · ${nights} night${nights !== 1 ? "s" : ""}`,
+      console.log("Configuring MPGS checkout:", {
+        sessionId,
+        orderId,
       });
-      loadMpgsAndPay(data.session_id, data.mpgs_js);
+
+      window.Checkout.configure({
+        session: {
+          id: sessionId,
+        },
+      });
+
+      console.log("Showing MPGS payment page");
+
+      window.Checkout.showPaymentPage();
     } catch (err) {
-      setError(err instanceof Error ? err.message : "Payment initiation failed");
+      console.error(
+        "MPGS configure/showPaymentPage error:",
+        err
+      );
+
+      setError(
+        err instanceof Error
+          ? err.message
+          : "Unable to open payment gateway."
+      );
+
       setLoading(false);
     }
   };
 
+  if (existingScript) {
+    if (window.Checkout) {
+      configureCheckout();
+    } else {
+      existingScript.addEventListener(
+        "load",
+        configureCheckout,
+        { once: true }
+      );
+    }
+
+    return;
+  }
+
+  const script = document.createElement("script");
+
+  script.src = mpgsJsUrl;
+  script.async = true;
+
+  script.setAttribute(
+    "data-error",
+    "paymentError"
+  );
+
+  script.setAttribute(
+    "data-cancel",
+    "paymentCancelled"
+  );
+
+  script.setAttribute(
+    "data-complete",
+    "paymentComplete"
+  );
+
+  script.onload = configureCheckout;
+
+  script.onerror = () => {
+    console.error(
+      "Failed to load MPGS:",
+      mpgsJsUrl
+    );
+
+    setError(
+      "Could not connect to payment gateway. Please try again."
+    );
+
+    setLoading(false);
+  };
+
+  document.body.appendChild(script);
+};
   return (
     <main className="pt-32 pb-section-gap-lg px-gutter max-w-container-max mx-auto">
       {/* Progress */}
