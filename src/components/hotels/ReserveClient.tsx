@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useState } from "react";
+import { useEffect, useRef, useState } from "react";
 import { useRouter } from "next/navigation";
 
 import type { HotelDetail, HotelRoom } from "@/lib/api";
@@ -10,14 +10,23 @@ import { initiatePayment } from "@/lib/payments";
 
 import DateSelector from "./DateSelector";
 
+/* -------------------------------------------------------------------------- */
+/* MPGS TYPES                                                                 */
+/* -------------------------------------------------------------------------- */
+
 declare global {
   interface Window {
     Checkout?: {
-      configure: (opts: unknown) => void;
+      configure: (options: {
+        session: {
+          id: string;
+        };
+      }) => void;
+
       showPaymentPage: () => void;
     };
 
-    paymentError?: (err: {
+    paymentError?: (error: {
       cause?: string;
       explanation?: string;
       [key: string]: unknown;
@@ -25,20 +34,13 @@ declare global {
 
     paymentCancelled?: () => void;
 
-    paymentComplete?: (
-      resultIndicator?: string,
-      sessionVersion?: string
-    ) => void;
-
-    paymentTimeout?: () => void;
+    paymentComplete?: () => void;
   }
 }
 
-/*
-|--------------------------------------------------------------------------
-| Room Image Helper
-|--------------------------------------------------------------------------
-*/
+/* -------------------------------------------------------------------------- */
+/* HELPERS                                                                    */
+/* -------------------------------------------------------------------------- */
 
 function roomImage(room: HotelRoom | null): string | null {
   if (!room) {
@@ -50,8 +52,7 @@ function roomImage(room: HotelRoom | null): string | null {
   const galleryUrl =
     typeof first === "string"
       ? first
-      : first?.url ??
-        toAbsoluteImageUrl(first?.path);
+      : first?.url ?? toAbsoluteImageUrl(first?.path);
 
   return (
     toAbsoluteImageUrl(room.image_url) ??
@@ -61,11 +62,9 @@ function roomImage(room: HotelRoom | null): string | null {
   );
 }
 
-/*
-|--------------------------------------------------------------------------
-| Reserve Client
-|--------------------------------------------------------------------------
-*/
+/* -------------------------------------------------------------------------- */
+/* COMPONENT                                                                  */
+/* -------------------------------------------------------------------------- */
 
 export default function ReserveClient({
   hotel,
@@ -78,11 +77,9 @@ export default function ReserveClient({
 
   const selectedRoom = initialRoom;
 
-  /*
-  |--------------------------------------------------------------------------
-  | State
-  |--------------------------------------------------------------------------
-  */
+  /* ------------------------------------------------------------------------ */
+  /* BOOKING STATE                                                            */
+  /* ------------------------------------------------------------------------ */
 
   const [dates, setDates] = useState<{
     startDate: Date;
@@ -100,24 +97,46 @@ export default function ReserveClient({
 
   const [error, setError] = useState<string | null>(null);
 
-  const [paymentOrderId, setPaymentOrderId] =
-    useState<string | null>(null);
+  /* ------------------------------------------------------------------------ */
+  /* SEASONAL PRICING                                                         */
+  /* ------------------------------------------------------------------------ */
 
-  const [seasonalPrices, setSeasonalPrices] =
-    useState<
-      Awaited<ReturnType<typeof getSeasonalPrices>>
-    >([]);
+  const [seasonalPrices, setSeasonalPrices] = useState<
+    Awaited<ReturnType<typeof getSeasonalPrices>>
+  >([]);
 
-  const [activeSeasonal, setActiveSeasonal] =
-    useState<
-      (typeof seasonalPrices)[number] | null
-    >(null);
+  const [activeSeasonal, setActiveSeasonal] = useState<
+    (typeof seasonalPrices)[number] | null
+  >(null);
+
+  /* ------------------------------------------------------------------------ */
+  /* MPGS STATE                                                               */
+  /* ------------------------------------------------------------------------ */
+
+  const [paymentOrderId, setPaymentOrderId] = useState<string | null>(null);
 
   /*
-  |--------------------------------------------------------------------------
-  | Load Logged-In User
-  |--------------------------------------------------------------------------
-  */
+   * Ref is important here.
+   *
+   * MPGS callbacks can fire after React state has changed.
+   * Using a ref guarantees that paymentComplete always has
+   * the latest order ID.
+   */
+  const paymentOrderIdRef = useRef<string | null>(null);
+
+  /*
+   * Prevent multiple MPGS checkout initializations.
+   */
+  const checkoutOpeningRef = useRef(false);
+
+  /*
+   * Keep track of the dynamically inserted Checkout.js script.
+   */
+  const mpgsScriptRef = useRef<HTMLScriptElement | null>(null);
+
+  /* ------------------------------------------------------------------------ */
+  /* LOAD USER                                                                */
+  /* ------------------------------------------------------------------------ */
 
   useEffect(() => {
     try {
@@ -134,29 +153,22 @@ export default function ReserveClient({
       }
 
       if (user?.name) {
-        const [first, ...rest] =
-          String(user.name).split(" ");
+        const [first, ...rest] = String(user.name).split(" ");
 
         setFirstName(first ?? "");
         setLastName(rest.join(" "));
       }
     } catch (err) {
-      console.warn(
-        "Unable to load stored user:",
-        err
-      );
+      console.warn("Could not load stored user:", err);
     }
   }, []);
 
-  /*
-  |--------------------------------------------------------------------------
-  | Load Seasonal Prices
-  |--------------------------------------------------------------------------
-  */
+  /* ------------------------------------------------------------------------ */
+  /* LOAD SEASONAL PRICES                                                     */
+  /* ------------------------------------------------------------------------ */
 
   useEffect(() => {
     if (!selectedRoom?.id) {
-      setSeasonalPrices([]);
       return;
     }
 
@@ -169,10 +181,7 @@ export default function ReserveClient({
         }
       })
       .catch((err) => {
-        console.error(
-          "Failed to load seasonal prices:",
-          err
-        );
+        console.error("Failed to load seasonal prices:", err);
 
         if (!cancelled) {
           setSeasonalPrices([]);
@@ -184,71 +193,44 @@ export default function ReserveClient({
     };
   }, [selectedRoom?.id]);
 
-  /*
-  |--------------------------------------------------------------------------
-  | Determine Active Seasonal Price
-  |--------------------------------------------------------------------------
-  */
+  /* ------------------------------------------------------------------------ */
+  /* FIND ACTIVE SEASONAL PRICE                                               */
+  /* ------------------------------------------------------------------------ */
 
   useEffect(() => {
-    if (
-      !dates ||
-      seasonalPrices.length === 0
-    ) {
+    if (!dates || seasonalPrices.length === 0) {
       setActiveSeasonal(null);
       return;
     }
 
-    const start = new Date(
-      dates.startDate
-    );
-
+    const start = new Date(dates.startDate);
     start.setHours(0, 0, 0, 0);
 
-    const end = new Date(
-      dates.endDate
-    );
-
+    const end = new Date(dates.endDate);
     end.setHours(0, 0, 0, 0);
 
-    const match = seasonalPrices.find(
-      (sp) => {
-        const seasonStart = new Date(
-          sp.start_date
-        );
+    const match = seasonalPrices.find((sp) => {
+      const seasonalStart = new Date(sp.start_date);
+      seasonalStart.setHours(0, 0, 0, 0);
 
-        seasonStart.setHours(0, 0, 0, 0);
+      const seasonalEnd = new Date(sp.end_date);
+      seasonalEnd.setHours(0, 0, 0, 0);
 
-        const seasonEnd = new Date(
-          sp.end_date
-        );
-
-        seasonEnd.setHours(0, 0, 0, 0);
-
-        return (
-          seasonStart <= start &&
-          seasonEnd >= end
-        );
-      }
-    );
+      return seasonalStart <= start && seasonalEnd >= end;
+    });
 
     setActiveSeasonal(match ?? null);
   }, [dates, seasonalPrices]);
 
-  /*
-  |--------------------------------------------------------------------------
-  | Price Calculation
-  |--------------------------------------------------------------------------
-  */
+  /* ------------------------------------------------------------------------ */
+  /* PRICE CALCULATION                                                        */
+  /* ------------------------------------------------------------------------ */
 
   const nights = dates
     ? Math.max(
         0,
         Math.ceil(
-          (
-            dates.endDate.getTime() -
-            dates.startDate.getTime()
-          ) /
+          (dates.endDate.getTime() - dates.startDate.getTime()) /
             (1000 * 60 * 60 * 24)
         )
       )
@@ -266,15 +248,13 @@ export default function ReserveClient({
     : null;
 
   const isOnOffer =
-    seasonalPrice !== null &&
-    seasonalPrice < basePrice;
+    seasonalPrice !== null && seasonalPrice < basePrice;
 
   const nightRate = isOnOffer
-    ? seasonalPrice!
+    ? seasonalPrice
     : basePrice;
 
-  const subtotal =
-    nights * nightRate;
+  const subtotal = nights * nightRate;
 
   const serviceCharge = Math.round(
     subtotal * 0.1
@@ -283,17 +263,6 @@ export default function ReserveClient({
   const vat = Math.round(
     subtotal * 0.05
   );
-
-  /*
-  |--------------------------------------------------------------------------
-  | IMPORTANT
-  |--------------------------------------------------------------------------
-  | Current frontend uses AED 4 per night.
-  |
-  | Make sure PaymentController.php uses
-  | the SAME value.
-  |--------------------------------------------------------------------------
-  */
 
   const tourismFee =
     nights > 0
@@ -306,19 +275,11 @@ export default function ReserveClient({
     vat +
     tourismFee;
 
-  /*
-  |--------------------------------------------------------------------------
-  | MPGS Callback Handlers
-  |--------------------------------------------------------------------------
-  */
+  /* ------------------------------------------------------------------------ */
+  /* MPGS CALLBACKS                                                           */
+  /* ------------------------------------------------------------------------ */
 
   useEffect(() => {
-    /*
-    |--------------------------------------------------------------------------
-    | Payment Error
-    |--------------------------------------------------------------------------
-    */
-
     window.paymentError = (err) => {
       console.error(
         "MPGS paymentError:",
@@ -335,16 +296,12 @@ export default function ReserveClient({
       );
 
       setLoading(false);
+
+      checkoutOpeningRef.current = false;
     };
 
-    /*
-    |--------------------------------------------------------------------------
-    | Payment Cancelled
-    |--------------------------------------------------------------------------
-    */
-
     window.paymentCancelled = () => {
-      console.log(
+      console.warn(
         "MPGS payment cancelled"
       );
 
@@ -353,57 +310,22 @@ export default function ReserveClient({
       );
 
       setLoading(false);
+
+      checkoutOpeningRef.current = false;
     };
 
-    /*
-    |--------------------------------------------------------------------------
-    | Payment Timeout
-    |--------------------------------------------------------------------------
-    */
-
-    window.paymentTimeout = () => {
+    window.paymentComplete = () => {
       console.log(
-        "MPGS payment timed out"
+        "MPGS payment completed."
       );
 
-      setError(
-        "The payment session timed out. Please try again."
-      );
+      const orderId =
+        paymentOrderIdRef.current;
 
-      setLoading(false);
-    };
-
-    /*
-    |--------------------------------------------------------------------------
-    | Payment Complete
-    |--------------------------------------------------------------------------
-    */
-
-    window.paymentComplete = (
-      resultIndicator,
-      sessionVersion
-    ) => {
-      console.log(
-        "MPGS payment completed:",
-        {
-          resultIndicator,
-          sessionVersion,
-          orderId: paymentOrderId,
-        }
-      );
-
-      /*
-      |--------------------------------------------------------------------------
-      | We redirect to our backend verification page.
-      |
-      | The backend verifies the order directly with MPGS.
-      |--------------------------------------------------------------------------
-      */
-
-      if (paymentOrderId) {
+      if (orderId) {
         window.location.href =
           `/payment/result?order_id=${encodeURIComponent(
-            paymentOrderId
+            orderId
           )}`;
       } else {
         window.location.href =
@@ -411,25 +333,16 @@ export default function ReserveClient({
       }
     };
 
-    /*
-    |--------------------------------------------------------------------------
-    | Cleanup
-    |--------------------------------------------------------------------------
-    */
-
     return () => {
       delete window.paymentError;
       delete window.paymentCancelled;
-      delete window.paymentTimeout;
       delete window.paymentComplete;
     };
-  }, [paymentOrderId]);
+  }, []);
 
-  /*
-  |--------------------------------------------------------------------------
-  | Load MPGS Hosted Checkout
-  |--------------------------------------------------------------------------
-  */
+  /* ------------------------------------------------------------------------ */
+  /* LOAD MPGS CHECKOUT SCRIPT                                                */
+  /* ------------------------------------------------------------------------ */
 
   const loadMpgsAndPay = (
     sessionId: string,
@@ -438,11 +351,11 @@ export default function ReserveClient({
   ) => {
     if (!sessionId) {
       console.error(
-        "Missing MPGS session ID"
+        "MPGS session ID is missing."
       );
 
       setError(
-        "Payment session was not created."
+        "Payment session was not created. Please try again."
       );
 
       setLoading(false);
@@ -452,7 +365,7 @@ export default function ReserveClient({
 
     if (!mpgsJsUrl) {
       console.error(
-        "Missing MPGS JavaScript URL"
+        "MPGS Checkout.js URL is missing."
       );
 
       setError(
@@ -464,57 +377,68 @@ export default function ReserveClient({
       return;
     }
 
-    if (!orderId) {
-      console.error(
-        "Missing MPGS order ID"
-      );
-
-      setError(
-        "Payment order ID is missing."
-      );
-
-      setLoading(false);
-
-      return;
-    }
-
-    /*
-    |--------------------------------------------------------------------------
-    | Store Order ID
-    |--------------------------------------------------------------------------
-    */
+    /* ---------------------------------------------------------------------- */
+    /* SAVE ORDER ID                                                           */
+    /* ---------------------------------------------------------------------- */
 
     setPaymentOrderId(orderId);
 
-    /*
-    |--------------------------------------------------------------------------
-    | Configure MPGS
-    |--------------------------------------------------------------------------
-    */
+    paymentOrderIdRef.current =
+      orderId;
+
+    console.log(
+      "MPGS checkout starting:",
+      {
+        sessionId,
+        orderId,
+        mpgsJsUrl,
+      }
+    );
+
+    /* ---------------------------------------------------------------------- */
+    /* CONFIGURE CHECKOUT                                                      */
+    /* ---------------------------------------------------------------------- */
 
     const configureCheckout = () => {
       if (!window.Checkout) {
         console.error(
-          "MPGS Checkout object is unavailable."
+          "window.Checkout is not available after Checkout.js loaded."
         );
 
         setError(
-          "Payment gateway failed to initialize. Please try again."
+          "Payment gateway failed to initialize. Please refresh and try again."
         );
 
         setLoading(false);
+
+        checkoutOpeningRef.current = false;
 
         return;
       }
 
       try {
         console.log(
-          "Configuring MPGS Checkout:",
+          "MPGS Checkout object detected."
+        );
+
+        console.log(
+          "Configuring MPGS session:",
           {
             sessionId,
-            orderId,
           }
         );
+
+        /*
+         * IMPORTANT:
+         *
+         * We only pass the MPGS session ID.
+         *
+         * Do NOT manually POST to:
+         *
+         * /api/page/version/100/pay
+         *
+         * Checkout.js handles that internally.
+         */
 
         window.Checkout.configure({
           session: {
@@ -523,35 +447,54 @@ export default function ReserveClient({
         });
 
         console.log(
-          "MPGS Checkout configured."
+          "MPGS Checkout configured successfully."
         );
 
         console.log(
-          "Opening MPGS payment page..."
+          "Opening MPGS Hosted Checkout page..."
         );
 
         window.Checkout.showPaymentPage();
+
+        console.log(
+          "MPGS showPaymentPage() called."
+        );
       } catch (err) {
         console.error(
           "MPGS configure/showPaymentPage error:",
           err
         );
 
-        setError(
+        const message =
           err instanceof Error
             ? err.message
-            : "Unable to open payment gateway."
-        );
+            : "Unable to open payment gateway.";
+
+        setError(message);
 
         setLoading(false);
+
+        checkoutOpeningRef.current = false;
       }
     };
 
-    /*
-    |--------------------------------------------------------------------------
-    | Check Existing Script
-    |--------------------------------------------------------------------------
-    */
+    /* ---------------------------------------------------------------------- */
+    /* CHECK IF CHECKOUT.JS IS ALREADY LOADED                                  */
+    /* ---------------------------------------------------------------------- */
+
+    if (window.Checkout) {
+      console.log(
+        "MPGS Checkout.js already loaded."
+      );
+
+      configureCheckout();
+
+      return;
+    }
+
+    /* ---------------------------------------------------------------------- */
+    /* CHECK EXISTING SCRIPT                                                   */
+    /* ---------------------------------------------------------------------- */
 
     const existingScript =
       document.querySelector(
@@ -560,50 +503,50 @@ export default function ReserveClient({
 
     if (existingScript) {
       console.log(
-        "MPGS script already exists."
+        "MPGS Checkout.js script already exists. Waiting for load..."
       );
 
-      if (window.Checkout) {
+      const handleLoad = () => {
         configureCheckout();
-      } else {
-        existingScript.addEventListener(
-          "load",
-          configureCheckout,
-          {
-            once: true,
-          }
-        );
+      };
 
-        existingScript.addEventListener(
-          "error",
-          () => {
-            console.error(
-              "Existing MPGS script failed to load."
-            );
+      existingScript.addEventListener(
+        "load",
+        handleLoad,
+        {
+          once: true,
+        }
+      );
 
-            setError(
-              "Could not load payment gateway."
-            );
+      existingScript.addEventListener(
+        "error",
+        () => {
+          console.error(
+            "Existing MPGS Checkout.js failed to load."
+          );
 
-            setLoading(false);
-          },
-          {
-            once: true,
-          }
-        );
-      }
+          setError(
+            "Could not load the payment gateway."
+          );
+
+          setLoading(false);
+
+          checkoutOpeningRef.current = false;
+        },
+        {
+          once: true,
+        }
+      );
 
       return;
     }
 
-    /*
-    |--------------------------------------------------------------------------
-    | Create MPGS Script
-    |--------------------------------------------------------------------------
-    */
+    /* ---------------------------------------------------------------------- */
+    /* CREATE CHECKOUT.JS SCRIPT                                               */
+    /* ---------------------------------------------------------------------- */
 
     console.log(
-      "Loading MPGS script:",
+      "Loading MPGS Checkout.js:",
       mpgsJsUrl
     );
 
@@ -613,12 +556,6 @@ export default function ReserveClient({
     script.src = mpgsJsUrl;
 
     script.async = true;
-
-    /*
-    |--------------------------------------------------------------------------
-    | MPGS Callback Attributes
-    |--------------------------------------------------------------------------
-    */
 
     script.setAttribute(
       "data-error",
@@ -635,35 +572,21 @@ export default function ReserveClient({
       "paymentComplete"
     );
 
-    script.setAttribute(
-      "data-timeout",
-      "paymentTimeout"
-    );
-
-    /*
-    |--------------------------------------------------------------------------
-    | Script Load
-    |--------------------------------------------------------------------------
-    */
-
     script.onload = () => {
       console.log(
-        "MPGS script loaded."
+        "MPGS Checkout.js loaded successfully."
       );
 
       configureCheckout();
     };
 
-    /*
-    |--------------------------------------------------------------------------
-    | Script Error
-    |--------------------------------------------------------------------------
-    */
-
-    script.onerror = () => {
+    script.onerror = (event) => {
       console.error(
-        "Failed to load MPGS:",
-        mpgsJsUrl
+        "Failed to load MPGS Checkout.js:",
+        {
+          url: mpgsJsUrl,
+          event,
+        }
       );
 
       setError(
@@ -671,49 +594,31 @@ export default function ReserveClient({
       );
 
       setLoading(false);
+
+      checkoutOpeningRef.current = false;
     };
+
+    mpgsScriptRef.current = script;
 
     document.body.appendChild(script);
   };
 
-  /*
-  |--------------------------------------------------------------------------
-  | Confirm & Pay
-  |--------------------------------------------------------------------------
-  */
+  /* ------------------------------------------------------------------------ */
+  /* CONFIRM & PAY                                                            */
+  /* ------------------------------------------------------------------------ */
 
   const handleConfirm = async () => {
-    /*
-    |--------------------------------------------------------------------------
-    | Basic validation
-    |--------------------------------------------------------------------------
-    */
-
-    if (!dates || nights === 0) {
-      setError(
-        "Please select your check-in and check-out dates."
-      );
-
+    if (
+      !dates ||
+      nights === 0 ||
+      loading
+    ) {
       return;
     }
 
-    if (!email) {
-      setError(
-        "Please enter your email address."
-      );
-
-      return;
-    }
-
-    if (loading) {
-      return;
-    }
-
-    /*
-    |--------------------------------------------------------------------------
-    | Authentication
-    |--------------------------------------------------------------------------
-    */
+    /* ---------------------------------------------------------------------- */
+    /* LOGIN CHECK                                                             */
+    /* ---------------------------------------------------------------------- */
 
     const token =
       localStorage.getItem("token");
@@ -730,23 +635,65 @@ export default function ReserveClient({
       return;
     }
 
-    /*
-    |--------------------------------------------------------------------------
-    | Start Loading
-    |--------------------------------------------------------------------------
-    */
+    /* ---------------------------------------------------------------------- */
+    /* BASIC VALIDATION                                                        */
+    /* ---------------------------------------------------------------------- */
+
+    if (!email.trim()) {
+      setError(
+        "Please enter your email address."
+      );
+
+      return;
+    }
+
+    if (!firstName.trim()) {
+      setError(
+        "Please enter your first name."
+      );
+
+      return;
+    }
+
+    if (!lastName.trim()) {
+      setError(
+        "Please enter your last name."
+      );
+
+      return;
+    }
+
+    if (total <= 0) {
+      setError(
+        "Invalid booking amount."
+      );
+
+      return;
+    }
+
+    /* ---------------------------------------------------------------------- */
+    /* PREVENT DOUBLE CLICK                                                    */
+    /* ---------------------------------------------------------------------- */
+
+    if (checkoutOpeningRef.current) {
+      console.warn(
+        "MPGS checkout is already opening."
+      );
+
+      return;
+    }
+
+    checkoutOpeningRef.current = true;
 
     setLoading(true);
 
     setError(null);
 
-    try {
-      /*
-      |--------------------------------------------------------------------------
-      | Date Formatting
-      |--------------------------------------------------------------------------
-      */
+    /* ---------------------------------------------------------------------- */
+    /* INITIATE PAYMENT                                                        */
+    /* ---------------------------------------------------------------------- */
 
+    try {
       const checkIn =
         dates.startDate
           .toISOString()
@@ -757,46 +704,20 @@ export default function ReserveClient({
           .toISOString()
           .split("T")[0];
 
-      /*
-      |--------------------------------------------------------------------------
-      | Description
-      |--------------------------------------------------------------------------
-      */
-
-      const description =
-        `${hotel.title}${
-          selectedRoom
-            ? ` — ${selectedRoom.name}`
-            : ""
-        } · ${nights} night${
-          nights !== 1
-            ? "s"
-            : ""
-        }`;
-
-      /*
-      |--------------------------------------------------------------------------
-      | Initiate Payment
-      |--------------------------------------------------------------------------
-      */
-
       console.log(
-        "Starting payment initiation...",
+        "Initiating payment:",
         {
           total,
           email,
           hotelId: hotel.id,
-          roomId:
-            selectedRoom?.id ??
-            null,
+          roomId: selectedRoom?.id,
           checkIn,
           checkOut,
           adults,
           children,
           nightRate,
           seasonalPriceId:
-            activeSeasonal?.id ??
-            null,
+            activeSeasonal?.id ?? null,
         }
       );
 
@@ -804,7 +725,7 @@ export default function ReserveClient({
         await initiatePayment({
           total,
 
-          email,
+          email: email.trim(),
 
           hotel_id: hotel.id,
 
@@ -821,58 +742,65 @@ export default function ReserveClient({
             children,
           },
 
-          night_rate:
-            nightRate,
+          night_rate: nightRate,
 
           seasonal_price_id:
             activeSeasonal?.id ??
             null,
 
-          description,
+          description:
+            `${hotel.title}${
+              selectedRoom
+                ? ` — ${selectedRoom.name}`
+                : ""
+            } · ${nights} night${
+              nights !== 1
+                ? "s"
+                : ""
+            }`,
         });
-
-      /*
-      |--------------------------------------------------------------------------
-      | Validate Backend Response
-      |--------------------------------------------------------------------------
-      */
 
       console.log(
         "MPGS payment initiation response:",
         data
       );
 
+      /* -------------------------------------------------------------------- */
+      /* VALIDATE BACKEND RESPONSE                                             */
+      /* -------------------------------------------------------------------- */
+
       if (!data?.session_id) {
         throw new Error(
-          "MPGS session ID was not returned."
+          "MPGS did not return a checkout session."
         );
       }
 
       if (!data?.order_id) {
         throw new Error(
-          "MPGS order ID was not returned."
+          "MPGS did not return an order ID."
         );
       }
 
       if (!data?.mpgs_js) {
         throw new Error(
-          "MPGS checkout JavaScript URL was not returned."
+          "MPGS Checkout.js URL was not returned by the server."
         );
       }
 
-      /*
-      |--------------------------------------------------------------------------
-      | IMPORTANT
-      |--------------------------------------------------------------------------
-      |
-      | Pass ALL THREE values:
-      |
-      | session_id
-      | mpgs_js
-      | order_id
-      |
-      |--------------------------------------------------------------------------
-      */
+      /* -------------------------------------------------------------------- */
+      /* SAVE ORDER ID BEFORE OPENING CHECKOUT                                 */
+      /* -------------------------------------------------------------------- */
+
+      setPaymentOrderId(
+        data.order_id
+      );
+
+      paymentOrderIdRef.current =
+        data.order_id;
+
+      /* -------------------------------------------------------------------- */
+      /* OPEN HOSTED CHECKOUT                                                  */
+      /* -------------------------------------------------------------------- */
 
       loadMpgsAndPay(
         data.session_id,
@@ -892,19 +820,21 @@ export default function ReserveClient({
       );
 
       setLoading(false);
+
+      checkoutOpeningRef.current = false;
     }
   };
 
-  /*
-  |--------------------------------------------------------------------------
-  | Render
-  |--------------------------------------------------------------------------
-  */
+  /* ------------------------------------------------------------------------ */
+  /* RENDER                                                                   */
+  /* ------------------------------------------------------------------------ */
 
   return (
     <main className="pt-32 pb-section-gap-lg px-gutter max-w-container-max mx-auto">
 
-      {/* Progress */}
+      {/* ------------------------------------------------------------------ */}
+      {/* PROGRESS                                                           */}
+      {/* ------------------------------------------------------------------ */}
 
       <nav className="flex items-center gap-8 mb-12 overflow-x-auto whitespace-nowrap pb-4 md:pb-0">
 
@@ -912,7 +842,6 @@ export default function ReserveClient({
           <span className="w-6 h-6 rounded-full border border-outline flex items-center justify-center text-[10px]">
             01
           </span>
-
           SEARCH
         </div>
 
@@ -921,11 +850,9 @@ export default function ReserveClient({
         </span>
 
         <div className="flex items-center gap-2 text-secondary font-bold font-label-caps border-b-2 border-secondary pb-1">
-
           <span className="w-6 h-6 rounded-full bg-secondary text-on-secondary flex items-center justify-center text-[10px]">
             02
           </span>
-
           BOOKING DETAILS
         </div>
 
@@ -934,32 +861,35 @@ export default function ReserveClient({
         </span>
 
         <div className="flex items-center gap-2 text-on-surface-variant font-label-caps opacity-60">
-
           <span className="w-6 h-6 rounded-full border border-outline flex items-center justify-center text-[10px]">
             03
           </span>
-
           CONFIRMATION
         </div>
 
       </nav>
 
+      {/* ------------------------------------------------------------------ */}
+      {/* MAIN GRID                                                           */}
+      {/* ------------------------------------------------------------------ */}
+
       <div className="grid grid-cols-1 lg:grid-cols-12 gap-gutter items-start">
 
         {/* ================================================================ */}
-        {/* LEFT COLUMN */}
+        {/* LEFT COLUMN                                                       */}
         {/* ================================================================ */}
 
         <div className="lg:col-span-7 space-y-10">
 
-          {/* Room Summary */}
+          {/* -------------------------------------------------------------- */}
+          {/* ROOM SUMMARY                                                    */}
+          {/* -------------------------------------------------------------- */}
 
           <section className="bg-surface-container-lowest border border-outline-variant p-6 md:p-8 flex flex-col md:flex-row gap-6 relative overflow-hidden">
 
             <div className="w-full md:w-48 h-32 flex-shrink-0">
 
               {roomImage(selectedRoom) ? (
-
                 <img
                   src={roomImage(selectedRoom)!}
                   className="w-full h-full object-cover"
@@ -968,13 +898,10 @@ export default function ReserveClient({
                     "Room"
                   }
                 />
-
               ) : (
-
                 <div className="w-full h-full bg-surface-container-high flex items-center justify-center text-2xl">
                   🛏️
                 </div>
-
               )}
 
             </div>
@@ -984,11 +911,9 @@ export default function ReserveClient({
               <div>
 
                 <h2 className="font-headline-md text-headline-md text-primary mb-1">
-
                   {selectedRoom?.name ??
                     selectedRoom?.title ??
                     hotel.title}
-
                 </h2>
 
                 <p className="text-on-surface-variant font-body-sm flex items-center gap-2">
@@ -1006,26 +931,21 @@ export default function ReserveClient({
 
               {(selectedRoom?.size_sqm ||
                 selectedRoom?.capacity) && (
-
                 <div className="flex flex-wrap gap-4 mt-4">
 
                   {selectedRoom?.size_sqm && (
-
                     <span className="flex items-center gap-1 text-on-surface-variant text-[12px] uppercase tracking-wider font-semibold">
 
                       <span className="material-symbols-outlined text-[16px]">
                         square_foot
                       </span>
 
-                      {selectedRoom.size_sqm}
-                      m²
+                      {selectedRoom.size_sqm}m²
 
                     </span>
-
                   )}
 
                   {selectedRoom?.capacity && (
-
                     <span className="flex items-center gap-1 text-on-surface-variant text-[12px] uppercase tracking-wider font-semibold">
 
                       <span className="material-symbols-outlined text-[16px]">
@@ -1035,17 +955,14 @@ export default function ReserveClient({
                       {selectedRoom.capacity}
 
                     </span>
-
                   )}
 
                 </div>
-
               )}
 
             </div>
 
             {isOnOffer && (
-
               <div className="absolute top-0 right-0 p-4">
 
                 <span className="bg-secondary-container text-on-secondary-container px-3 py-1 font-label-caps text-[10px] uppercase">
@@ -1053,12 +970,13 @@ export default function ReserveClient({
                 </span>
 
               </div>
-
             )}
 
           </section>
 
-          {/* Dates & Guests */}
+          {/* -------------------------------------------------------------- */}
+          {/* DATES & GUESTS                                                   */}
+          {/* -------------------------------------------------------------- */}
 
           <section className="grid grid-cols-1 md:grid-cols-2 gap-gutter">
 
@@ -1091,12 +1009,11 @@ export default function ReserveClient({
                     <button
                       type="button"
                       onClick={() =>
-                        setAdults(
-                          (a) =>
-                            Math.max(
-                              1,
-                              a - 1
-                            )
+                        setAdults((a) =>
+                          Math.max(
+                            1,
+                            a - 1
+                          )
                         )
                       }
                       className="w-7 h-7 border border-outline-variant flex items-center justify-center"
@@ -1137,12 +1054,11 @@ export default function ReserveClient({
                     <button
                       type="button"
                       onClick={() =>
-                        setChildren(
-                          (c) =>
-                            Math.max(
-                              0,
-                              c - 1
-                            )
+                        setChildren((c) =>
+                          Math.max(
+                            0,
+                            c - 1
+                          )
                         )
                       }
                       className="w-7 h-7 border border-outline-variant flex items-center justify-center"
@@ -1176,7 +1092,9 @@ export default function ReserveClient({
 
           </section>
 
-          {/* Checkout Form */}
+          {/* -------------------------------------------------------------- */}
+          {/* CHECKOUT FORM                                                    */}
+          {/* -------------------------------------------------------------- */}
 
           <section className="space-y-6">
 
@@ -1186,9 +1104,9 @@ export default function ReserveClient({
 
             <div className="space-y-4">
 
-              <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+              {/* Names */}
 
-                {/* First Name */}
+              <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
 
                 <div>
 
@@ -1209,8 +1127,6 @@ export default function ReserveClient({
                   />
 
                 </div>
-
-                {/* Last Name */}
 
                 <div>
 
@@ -1256,7 +1172,7 @@ export default function ReserveClient({
 
               </div>
 
-              {/* Payment Method */}
+              {/* Payment methods */}
 
               <div className="pt-6">
 
@@ -1316,7 +1232,7 @@ export default function ReserveClient({
 
             </div>
 
-            {/* Security */}
+            {/* Security notice */}
 
             <div className="p-4 bg-surface-container-low rounded-lg flex gap-4 items-start">
 
@@ -1341,7 +1257,6 @@ export default function ReserveClient({
             {/* Error */}
 
             {error && (
-
               <div className="p-4 bg-error-container border border-error/30 rounded-lg">
 
                 <p className="text-error text-sm">
@@ -1349,7 +1264,6 @@ export default function ReserveClient({
                 </p>
 
               </div>
-
             )}
 
           </section>
@@ -1357,7 +1271,7 @@ export default function ReserveClient({
         </div>
 
         {/* ================================================================ */}
-        {/* RIGHT COLUMN */}
+        {/* RIGHT COLUMN                                                      */}
         {/* ================================================================ */}
 
         <aside className="lg:col-span-5">
@@ -1369,23 +1283,18 @@ export default function ReserveClient({
             </h3>
 
             {nights > 0 ? (
-
               <>
 
                 <div className="space-y-4 border-b border-outline-variant pb-6 mb-6">
-
-                  {/* Room */}
 
                   <div className="flex justify-between items-center text-body-md">
 
                     <span className="text-on-surface-variant">
 
-                      {nights}{" "}
-                      Night
+                      {nights} Night
                       {nights !== 1
                         ? "s"
                         : ""}{" "}
-
                       (AED{" "}
                       {nightRate.toLocaleString()}{" "}
                       per night)
@@ -1398,8 +1307,6 @@ export default function ReserveClient({
                     </span>
 
                   </div>
-
-                  {/* Service Charge */}
 
                   <div className="flex justify-between items-center text-body-sm">
 
@@ -1414,8 +1321,6 @@ export default function ReserveClient({
 
                   </div>
 
-                  {/* VAT */}
-
                   <div className="flex justify-between items-center text-body-sm">
 
                     <span className="text-on-surface-variant">
@@ -1428,8 +1333,6 @@ export default function ReserveClient({
                     </span>
 
                   </div>
-
-                  {/* Tourism Fee */}
 
                   <div className="flex justify-between items-center text-body-sm">
 
@@ -1445,8 +1348,6 @@ export default function ReserveClient({
                   </div>
 
                 </div>
-
-                {/* Total */}
 
                 <div className="flex justify-between items-end mb-8">
 
@@ -1470,16 +1371,15 @@ export default function ReserveClient({
                 </div>
 
               </>
-
             ) : (
-
               <p className="text-on-surface-variant text-sm mb-8">
                 Select your stay dates to see the full price breakdown.
               </p>
-
             )}
 
-            {/* Confirm & Pay */}
+            {/* ============================================================ */}
+            {/* CONFIRM & PAY                                                 */}
+            {/* ============================================================ */}
 
             <button
               type="button"
@@ -1488,13 +1388,14 @@ export default function ReserveClient({
                 !dates ||
                 nights === 0 ||
                 !email ||
+                !firstName ||
+                !lastName ||
                 loading
               }
               className="w-full bg-primary text-on-primary py-4 px-8 font-bold text-body-lg hover:bg-secondary transition-all duration-300 active:scale-[0.98] flex items-center justify-center gap-3 group disabled:opacity-40 disabled:cursor-not-allowed"
             >
 
               {loading ? (
-
                 <>
                   <span className="material-symbols-outlined animate-spin">
                     progress_activity
@@ -1502,9 +1403,7 @@ export default function ReserveClient({
 
                   Processing…
                 </>
-
               ) : (
-
                 <>
                   Confirm &amp; Pay
 
@@ -1512,7 +1411,6 @@ export default function ReserveClient({
                     arrow_forward
                   </span>
                 </>
-
               )}
 
             </button>
@@ -1520,6 +1418,15 @@ export default function ReserveClient({
             <p className="mt-6 text-center text-[12px] text-on-surface-variant italic">
               Free cancellation available on select rooms. Review terms before booking.
             </p>
+
+            {/* Debug information only while developing */}
+
+            {paymentOrderId && loading && (
+              <p className="mt-3 text-center text-[10px] text-on-surface-variant">
+                Payment Reference:{" "}
+                {paymentOrderId}
+              </p>
+            )}
 
           </div>
 
