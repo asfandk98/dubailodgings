@@ -2,10 +2,12 @@
 
 import { useEffect, useState } from "react";
 import { useRouter } from "next/navigation";
+
 import type { HotelDetail, HotelRoom } from "@/lib/api";
 import { getSeasonalPrices } from "@/lib/api";
 import { toAbsoluteImageUrl } from "@/lib/resolveImage";
 import { initiatePayment } from "@/lib/payments";
+
 import DateSelector from "./DateSelector";
 
 declare global {
@@ -23,19 +25,33 @@ declare global {
 
     paymentCancelled?: () => void;
 
-    paymentComplete?: () => void;
+    paymentComplete?: (
+      resultIndicator?: string,
+      sessionVersion?: string
+    ) => void;
+
+    paymentTimeout?: () => void;
   }
 }
 
+/*
+|--------------------------------------------------------------------------
+| Room Image Helper
+|--------------------------------------------------------------------------
+*/
+
 function roomImage(room: HotelRoom | null): string | null {
-  if (!room) return null;
+  if (!room) {
+    return null;
+  }
 
   const first = room.images?.[0];
 
   const galleryUrl =
     typeof first === "string"
       ? first
-      : first?.url ?? toAbsoluteImageUrl(first?.path);
+      : first?.url ??
+        toAbsoluteImageUrl(first?.path);
 
   return (
     toAbsoluteImageUrl(room.image_url) ??
@@ -44,6 +60,12 @@ function roomImage(room: HotelRoom | null): string | null {
     null
   );
 }
+
+/*
+|--------------------------------------------------------------------------
+| Reserve Client
+|--------------------------------------------------------------------------
+*/
 
 export default function ReserveClient({
   hotel,
@@ -56,9 +78,11 @@ export default function ReserveClient({
 
   const selectedRoom = initialRoom;
 
-  /* =========================================================
-     STATE
-  ========================================================= */
+  /*
+  |--------------------------------------------------------------------------
+  | State
+  |--------------------------------------------------------------------------
+  */
 
   const [dates, setDates] = useState<{
     startDate: Date;
@@ -73,26 +97,37 @@ export default function ReserveClient({
   const [children, setChildren] = useState(0);
 
   const [loading, setLoading] = useState(false);
+
   const [error, setError] = useState<string | null>(null);
 
   const [paymentOrderId, setPaymentOrderId] =
     useState<string | null>(null);
 
   const [seasonalPrices, setSeasonalPrices] =
-    useState<Awaited<ReturnType<typeof getSeasonalPrices>>>([]);
+    useState<
+      Awaited<ReturnType<typeof getSeasonalPrices>>
+    >([]);
 
   const [activeSeasonal, setActiveSeasonal] =
-    useState<(typeof seasonalPrices)[number] | null>(null);
+    useState<
+      (typeof seasonalPrices)[number] | null
+    >(null);
 
-  /* =========================================================
-     LOAD LOGGED-IN USER
-  ========================================================= */
+  /*
+  |--------------------------------------------------------------------------
+  | Load Logged-In User
+  |--------------------------------------------------------------------------
+  */
 
   useEffect(() => {
     try {
-      const user = JSON.parse(
-        localStorage.getItem("user") ?? "{}"
-      );
+      const storedUser = localStorage.getItem("user");
+
+      if (!storedUser) {
+        return;
+      }
+
+      const user = JSON.parse(storedUser);
 
       if (user?.email) {
         setEmail(user.email);
@@ -100,75 +135,120 @@ export default function ReserveClient({
 
       if (user?.name) {
         const [first, ...rest] =
-          user.name.split(" ");
+          String(user.name).split(" ");
 
         setFirstName(first ?? "");
         setLastName(rest.join(" "));
       }
-    } catch {
-      // User is not logged in or invalid user data
+    } catch (err) {
+      console.warn(
+        "Unable to load stored user:",
+        err
+      );
     }
   }, []);
 
-  /* =========================================================
-     LOAD SEASONAL PRICES
-  ========================================================= */
+  /*
+  |--------------------------------------------------------------------------
+  | Load Seasonal Prices
+  |--------------------------------------------------------------------------
+  */
 
   useEffect(() => {
-    if (!selectedRoom?.id) return;
+    if (!selectedRoom?.id) {
+      setSeasonalPrices([]);
+      return;
+    }
+
+    let cancelled = false;
 
     getSeasonalPrices(selectedRoom.id)
-      .then(setSeasonalPrices)
+      .then((prices) => {
+        if (!cancelled) {
+          setSeasonalPrices(prices);
+        }
+      })
       .catch((err) => {
         console.error(
           "Failed to load seasonal prices:",
           err
         );
+
+        if (!cancelled) {
+          setSeasonalPrices([]);
+        }
       });
+
+    return () => {
+      cancelled = true;
+    };
   }, [selectedRoom?.id]);
 
-  /* =========================================================
-     FIND ACTIVE SEASONAL PRICE
-  ========================================================= */
+  /*
+  |--------------------------------------------------------------------------
+  | Determine Active Seasonal Price
+  |--------------------------------------------------------------------------
+  */
 
   useEffect(() => {
-    if (!dates || seasonalPrices.length === 0) {
+    if (
+      !dates ||
+      seasonalPrices.length === 0
+    ) {
       setActiveSeasonal(null);
       return;
     }
 
-    const start = new Date(dates.startDate);
+    const start = new Date(
+      dates.startDate
+    );
+
     start.setHours(0, 0, 0, 0);
 
-    const end = new Date(dates.endDate);
+    const end = new Date(
+      dates.endDate
+    );
+
     end.setHours(0, 0, 0, 0);
 
-    const match = seasonalPrices.find((sp) => {
-      const seasonStart = new Date(sp.start_date);
-      seasonStart.setHours(0, 0, 0, 0);
+    const match = seasonalPrices.find(
+      (sp) => {
+        const seasonStart = new Date(
+          sp.start_date
+        );
 
-      const seasonEnd = new Date(sp.end_date);
-      seasonEnd.setHours(0, 0, 0, 0);
+        seasonStart.setHours(0, 0, 0, 0);
 
-      return (
-        seasonStart <= start &&
-        seasonEnd >= end
-      );
-    });
+        const seasonEnd = new Date(
+          sp.end_date
+        );
+
+        seasonEnd.setHours(0, 0, 0, 0);
+
+        return (
+          seasonStart <= start &&
+          seasonEnd >= end
+        );
+      }
+    );
 
     setActiveSeasonal(match ?? null);
   }, [dates, seasonalPrices]);
 
-  /* =========================================================
-     PRICE CALCULATIONS
-  ========================================================= */
+  /*
+  |--------------------------------------------------------------------------
+  | Price Calculation
+  |--------------------------------------------------------------------------
+  */
 
   const nights = dates
     ? Math.max(
         0,
         Math.ceil(
-          (dates.endDate.getTime() -
-            dates.startDate.getTime()) /
+          (
+            dates.endDate.getTime() -
+            dates.startDate.getTime()
+          ) /
             (1000 * 60 * 60 * 24)
         )
       )
@@ -193,7 +273,8 @@ export default function ReserveClient({
     ? seasonalPrice!
     : basePrice;
 
-  const subtotal = nights * nightRate;
+  const subtotal =
+    nights * nightRate;
 
   const serviceCharge = Math.round(
     subtotal * 0.1
@@ -203,8 +284,21 @@ export default function ReserveClient({
     subtotal * 0.05
   );
 
+  /*
+  |--------------------------------------------------------------------------
+  | IMPORTANT
+  |--------------------------------------------------------------------------
+  | Current frontend uses AED 4 per night.
+  |
+  | Make sure PaymentController.php uses
+  | the SAME value.
+  |--------------------------------------------------------------------------
+  */
+
   const tourismFee =
-    nights > 0 ? 4 * nights : 0;
+    nights > 0
+      ? 4 * nights
+      : 0;
 
   const total =
     subtotal +
@@ -212,15 +306,23 @@ export default function ReserveClient({
     vat +
     tourismFee;
 
-  /* =========================================================
-     MPGS CALLBACKS
-  ========================================================= */
+  /*
+  |--------------------------------------------------------------------------
+  | MPGS Callback Handlers
+  |--------------------------------------------------------------------------
+  */
 
   useEffect(() => {
+    /*
+    |--------------------------------------------------------------------------
+    | Payment Error
+    |--------------------------------------------------------------------------
+    */
+
     window.paymentError = (err) => {
       console.error(
         "MPGS paymentError:",
-        JSON.stringify(err, null, 2)
+        err
       );
 
       const message =
@@ -235,6 +337,12 @@ export default function ReserveClient({
       setLoading(false);
     };
 
+    /*
+    |--------------------------------------------------------------------------
+    | Payment Cancelled
+    |--------------------------------------------------------------------------
+    */
+
     window.paymentCancelled = () => {
       console.log(
         "MPGS payment cancelled"
@@ -247,10 +355,50 @@ export default function ReserveClient({
       setLoading(false);
     };
 
-    window.paymentComplete = () => {
+    /*
+    |--------------------------------------------------------------------------
+    | Payment Timeout
+    |--------------------------------------------------------------------------
+    */
+
+    window.paymentTimeout = () => {
       console.log(
-        "MPGS payment completed"
+        "MPGS payment timed out"
       );
+
+      setError(
+        "The payment session timed out. Please try again."
+      );
+
+      setLoading(false);
+    };
+
+    /*
+    |--------------------------------------------------------------------------
+    | Payment Complete
+    |--------------------------------------------------------------------------
+    */
+
+    window.paymentComplete = (
+      resultIndicator,
+      sessionVersion
+    ) => {
+      console.log(
+        "MPGS payment completed:",
+        {
+          resultIndicator,
+          sessionVersion,
+          orderId: paymentOrderId,
+        }
+      );
+
+      /*
+      |--------------------------------------------------------------------------
+      | We redirect to our backend verification page.
+      |
+      | The backend verifies the order directly with MPGS.
+      |--------------------------------------------------------------------------
+      */
 
       if (paymentOrderId) {
         window.location.href =
@@ -263,52 +411,91 @@ export default function ReserveClient({
       }
     };
 
+    /*
+    |--------------------------------------------------------------------------
+    | Cleanup
+    |--------------------------------------------------------------------------
+    */
+
     return () => {
       delete window.paymentError;
       delete window.paymentCancelled;
+      delete window.paymentTimeout;
       delete window.paymentComplete;
     };
   }, [paymentOrderId]);
 
-  /* =========================================================
-     LOAD MPGS CHECKOUT.JS
-  ========================================================= */
+  /*
+  |--------------------------------------------------------------------------
+  | Load MPGS Hosted Checkout
+  |--------------------------------------------------------------------------
+  */
 
   const loadMpgsAndPay = (
     sessionId: string,
     mpgsJsUrl: string,
     orderId: string
   ) => {
+    if (!sessionId) {
+      console.error(
+        "Missing MPGS session ID"
+      );
+
+      setError(
+        "Payment session was not created."
+      );
+
+      setLoading(false);
+
+      return;
+    }
+
+    if (!mpgsJsUrl) {
+      console.error(
+        "Missing MPGS JavaScript URL"
+      );
+
+      setError(
+        "Payment gateway configuration is missing."
+      );
+
+      setLoading(false);
+
+      return;
+    }
+
+    if (!orderId) {
+      console.error(
+        "Missing MPGS order ID"
+      );
+
+      setError(
+        "Payment order ID is missing."
+      );
+
+      setLoading(false);
+
+      return;
+    }
+
     /*
-     * Store the order ID so paymentComplete can redirect
-     * to the correct payment result page.
-     */
+    |--------------------------------------------------------------------------
+    | Store Order ID
+    |--------------------------------------------------------------------------
+    */
+
     setPaymentOrderId(orderId);
 
-    console.log(
-      "Starting MPGS checkout:",
-      {
-        sessionId,
-        orderId,
-        mpgsJsUrl,
-      }
-    );
-
     /*
-     * Check whether checkout.js is already loaded.
-     */
-    const existingScript =
-      document.querySelector(
-        `script[src="${mpgsJsUrl}"]`
-      ) as HTMLScriptElement | null;
+    |--------------------------------------------------------------------------
+    | Configure MPGS
+    |--------------------------------------------------------------------------
+    */
 
-    /*
-     * Configure and display MPGS.
-     */
     const configureCheckout = () => {
       if (!window.Checkout) {
         console.error(
-          "window.Checkout is not available"
+          "MPGS Checkout object is unavailable."
         );
 
         setError(
@@ -322,7 +509,7 @@ export default function ReserveClient({
 
       try {
         console.log(
-          "Configuring MPGS checkout:",
+          "Configuring MPGS Checkout:",
           {
             sessionId,
             orderId,
@@ -336,11 +523,14 @@ export default function ReserveClient({
         });
 
         console.log(
-          "Showing MPGS payment page..."
+          "MPGS Checkout configured."
+        );
+
+        console.log(
+          "Opening MPGS payment page..."
         );
 
         window.Checkout.showPaymentPage();
-
       } catch (err) {
         console.error(
           "MPGS configure/showPaymentPage error:",
@@ -358,9 +548,21 @@ export default function ReserveClient({
     };
 
     /*
-     * If MPGS script already exists.
-     */
+    |--------------------------------------------------------------------------
+    | Check Existing Script
+    |--------------------------------------------------------------------------
+    */
+
+    const existingScript =
+      document.querySelector(
+        `script[src="${mpgsJsUrl}"]`
+      ) as HTMLScriptElement | null;
+
     if (existingScript) {
+      console.log(
+        "MPGS script already exists."
+      );
+
       if (window.Checkout) {
         configureCheckout();
       } else {
@@ -371,23 +573,53 @@ export default function ReserveClient({
             once: true,
           }
         );
+
+        existingScript.addEventListener(
+          "error",
+          () => {
+            console.error(
+              "Existing MPGS script failed to load."
+            );
+
+            setError(
+              "Could not load payment gateway."
+            );
+
+            setLoading(false);
+          },
+          {
+            once: true,
+          }
+        );
       }
 
       return;
     }
 
     /*
-     * Create MPGS checkout.js script.
-     */
+    |--------------------------------------------------------------------------
+    | Create MPGS Script
+    |--------------------------------------------------------------------------
+    */
+
+    console.log(
+      "Loading MPGS script:",
+      mpgsJsUrl
+    );
+
     const script =
       document.createElement("script");
 
     script.src = mpgsJsUrl;
+
     script.async = true;
 
     /*
-     * MPGS callback attributes.
-     */
+    |--------------------------------------------------------------------------
+    | MPGS Callback Attributes
+    |--------------------------------------------------------------------------
+    */
+
     script.setAttribute(
       "data-error",
       "paymentError"
@@ -403,20 +635,31 @@ export default function ReserveClient({
       "paymentComplete"
     );
 
+    script.setAttribute(
+      "data-timeout",
+      "paymentTimeout"
+    );
+
     /*
-     * When checkout.js finishes loading.
-     */
+    |--------------------------------------------------------------------------
+    | Script Load
+    |--------------------------------------------------------------------------
+    */
+
     script.onload = () => {
       console.log(
-        "MPGS checkout.js loaded"
+        "MPGS script loaded."
       );
 
       configureCheckout();
     };
 
     /*
-     * If checkout.js fails to load.
-     */
+    |--------------------------------------------------------------------------
+    | Script Error
+    |--------------------------------------------------------------------------
+    */
+
     script.onerror = () => {
       console.error(
         "Failed to load MPGS:",
@@ -424,7 +667,7 @@ export default function ReserveClient({
       );
 
       setError(
-        "Could not connect to payment gateway. Please try again."
+        "Could not connect to the payment gateway. Please try again."
       );
 
       setLoading(false);
@@ -433,21 +676,45 @@ export default function ReserveClient({
     document.body.appendChild(script);
   };
 
-  /* =========================================================
-     CONFIRM & PAY
-  ========================================================= */
+  /*
+  |--------------------------------------------------------------------------
+  | Confirm & Pay
+  |--------------------------------------------------------------------------
+  */
 
   const handleConfirm = async () => {
     /*
-     * Validate dates.
-     */
-    if (!dates || nights === 0 || loading) {
+    |--------------------------------------------------------------------------
+    | Basic validation
+    |--------------------------------------------------------------------------
+    */
+
+    if (!dates || nights === 0) {
+      setError(
+        "Please select your check-in and check-out dates."
+      );
+
+      return;
+    }
+
+    if (!email) {
+      setError(
+        "Please enter your email address."
+      );
+
+      return;
+    }
+
+    if (loading) {
       return;
     }
 
     /*
-     * Check authentication.
-     */
+    |--------------------------------------------------------------------------
+    | Authentication
+    |--------------------------------------------------------------------------
+    */
+
     const token =
       localStorage.getItem("token");
 
@@ -464,36 +731,90 @@ export default function ReserveClient({
     }
 
     /*
-     * Start loading.
-     */
+    |--------------------------------------------------------------------------
+    | Start Loading
+    |--------------------------------------------------------------------------
+    */
+
     setLoading(true);
+
     setError(null);
 
     try {
       /*
-       * Initiate payment on Laravel backend.
-       */
+      |--------------------------------------------------------------------------
+      | Date Formatting
+      |--------------------------------------------------------------------------
+      */
+
+      const checkIn =
+        dates.startDate
+          .toISOString()
+          .split("T")[0];
+
+      const checkOut =
+        dates.endDate
+          .toISOString()
+          .split("T")[0];
+
+      /*
+      |--------------------------------------------------------------------------
+      | Description
+      |--------------------------------------------------------------------------
+      */
+
+      const description =
+        `${hotel.title}${
+          selectedRoom
+            ? ` — ${selectedRoom.name}`
+            : ""
+        } · ${nights} night${
+          nights !== 1
+            ? "s"
+            : ""
+        }`;
+
+      /*
+      |--------------------------------------------------------------------------
+      | Initiate Payment
+      |--------------------------------------------------------------------------
+      */
+
+      console.log(
+        "Starting payment initiation...",
+        {
+          total,
+          email,
+          hotelId: hotel.id,
+          roomId:
+            selectedRoom?.id ??
+            null,
+          checkIn,
+          checkOut,
+          adults,
+          children,
+          nightRate,
+          seasonalPriceId:
+            activeSeasonal?.id ??
+            null,
+        }
+      );
+
       const data =
         await initiatePayment({
           total,
 
           email,
 
-          hotel_id:
-            hotel.id,
+          hotel_id: hotel.id,
 
           room_id:
-            selectedRoom?.id ?? null,
+            selectedRoom?.id ??
+            null,
 
-          check_in:
-            dates.startDate
-              .toISOString()
-              .split("T")[0],
+          check_in: checkIn,
 
-          check_out:
-            dates.endDate
-              .toISOString()
-              .split("T")[0],
+          check_out: checkOut,
 
           guests: {
             adults,
@@ -504,38 +825,60 @@ export default function ReserveClient({
             nightRate,
 
           seasonal_price_id:
-            activeSeasonal?.id ?? null,
+            activeSeasonal?.id ??
+            null,
 
-          description:
-            `${hotel.title}${
-              selectedRoom
-                ? ` — ${selectedRoom.name}`
-                : ""
-            } · ${nights} night${
-              nights !== 1 ? "s" : ""
-            }`,
+          description,
         });
+
+      /*
+      |--------------------------------------------------------------------------
+      | Validate Backend Response
+      |--------------------------------------------------------------------------
+      */
 
       console.log(
         "MPGS payment initiation response:",
         data
       );
 
+      if (!data?.session_id) {
+        throw new Error(
+          "MPGS session ID was not returned."
+        );
+      }
+
+      if (!data?.order_id) {
+        throw new Error(
+          "MPGS order ID was not returned."
+        );
+      }
+
+      if (!data?.mpgs_js) {
+        throw new Error(
+          "MPGS checkout JavaScript URL was not returned."
+        );
+      }
+
       /*
-       * IMPORTANT:
-       *
-       * We now pass all THREE values:
-       *
-       * session_id
-       * mpgs_js
-       * order_id
-       */
+      |--------------------------------------------------------------------------
+      | IMPORTANT
+      |--------------------------------------------------------------------------
+      |
+      | Pass ALL THREE values:
+      |
+      | session_id
+      | mpgs_js
+      | order_id
+      |
+      |--------------------------------------------------------------------------
+      */
+
       loadMpgsAndPay(
         data.session_id,
         data.mpgs_js,
         data.order_id
       );
-
     } catch (err) {
       console.error(
         "Payment initiation failed:",
@@ -545,21 +888,24 @@ export default function ReserveClient({
       setError(
         err instanceof Error
           ? err.message
-          : "Payment initiation failed"
+          : "Payment initiation failed. Please try again."
       );
 
       setLoading(false);
     }
   };
 
-  /* =========================================================
-     UI
-  ========================================================= */
+  /*
+  |--------------------------------------------------------------------------
+  | Render
+  |--------------------------------------------------------------------------
+  */
 
   return (
     <main className="pt-32 pb-section-gap-lg px-gutter max-w-container-max mx-auto">
 
       {/* Progress */}
+
       <nav className="flex items-center gap-8 mb-12 overflow-x-auto whitespace-nowrap pb-4 md:pb-0">
 
         <div className="flex items-center gap-2 text-on-surface-variant font-label-caps opacity-60">
@@ -575,6 +921,7 @@ export default function ReserveClient({
         </span>
 
         <div className="flex items-center gap-2 text-secondary font-bold font-label-caps border-b-2 border-secondary pb-1">
+
           <span className="w-6 h-6 rounded-full bg-secondary text-on-secondary flex items-center justify-center text-[10px]">
             02
           </span>
@@ -587,28 +934,32 @@ export default function ReserveClient({
         </span>
 
         <div className="flex items-center gap-2 text-on-surface-variant font-label-caps opacity-60">
+
           <span className="w-6 h-6 rounded-full border border-outline flex items-center justify-center text-[10px]">
             03
           </span>
 
           CONFIRMATION
         </div>
+
       </nav>
 
       <div className="grid grid-cols-1 lg:grid-cols-12 gap-gutter items-start">
 
-        {/* =====================================================
-            LEFT COLUMN
-        ===================================================== */}
+        {/* ================================================================ */}
+        {/* LEFT COLUMN */}
+        {/* ================================================================ */}
 
         <div className="lg:col-span-7 space-y-10">
 
           {/* Room Summary */}
+
           <section className="bg-surface-container-lowest border border-outline-variant p-6 md:p-8 flex flex-col md:flex-row gap-6 relative overflow-hidden">
 
             <div className="w-full md:w-48 h-32 flex-shrink-0">
 
               {roomImage(selectedRoom) ? (
+
                 <img
                   src={roomImage(selectedRoom)!}
                   className="w-full h-full object-cover"
@@ -617,10 +968,13 @@ export default function ReserveClient({
                     "Room"
                   }
                 />
+
               ) : (
+
                 <div className="w-full h-full bg-surface-container-high flex items-center justify-center text-2xl">
                   🛏️
                 </div>
+
               )}
 
             </div>
@@ -630,9 +984,11 @@ export default function ReserveClient({
               <div>
 
                 <h2 className="font-headline-md text-headline-md text-primary mb-1">
+
                   {selectedRoom?.name ??
                     selectedRoom?.title ??
                     hotel.title}
+
                 </h2>
 
                 <p className="text-on-surface-variant font-body-sm flex items-center gap-2">
@@ -654,18 +1010,22 @@ export default function ReserveClient({
                 <div className="flex flex-wrap gap-4 mt-4">
 
                   {selectedRoom?.size_sqm && (
+
                     <span className="flex items-center gap-1 text-on-surface-variant text-[12px] uppercase tracking-wider font-semibold">
 
                       <span className="material-symbols-outlined text-[16px]">
                         square_foot
                       </span>
 
-                      {selectedRoom.size_sqm}m²
+                      {selectedRoom.size_sqm}
+                      m²
 
                     </span>
+
                   )}
 
                   {selectedRoom?.capacity && (
+
                     <span className="flex items-center gap-1 text-on-surface-variant text-[12px] uppercase tracking-wider font-semibold">
 
                       <span className="material-symbols-outlined text-[16px]">
@@ -675,14 +1035,17 @@ export default function ReserveClient({
                       {selectedRoom.capacity}
 
                     </span>
+
                   )}
 
                 </div>
+
               )}
 
             </div>
 
             {isOnOffer && (
+
               <div className="absolute top-0 right-0 p-4">
 
                 <span className="bg-secondary-container text-on-secondary-container px-3 py-1 font-label-caps text-[10px] uppercase">
@@ -690,11 +1053,13 @@ export default function ReserveClient({
                 </span>
 
               </div>
+
             )}
 
           </section>
 
           {/* Dates & Guests */}
+
           <section className="grid grid-cols-1 md:grid-cols-2 gap-gutter">
 
             <DateSelector
@@ -714,6 +1079,7 @@ export default function ReserveClient({
               <div className="border border-outline-variant p-4 bg-white space-y-3">
 
                 {/* Adults */}
+
                 <div className="flex items-center justify-between">
 
                   <span className="font-bold text-primary text-sm">
@@ -725,8 +1091,12 @@ export default function ReserveClient({
                     <button
                       type="button"
                       onClick={() =>
-                        setAdults((a) =>
-                          Math.max(1, a - 1)
+                        setAdults(
+                          (a) =>
+                            Math.max(
+                              1,
+                              a - 1
+                            )
                         )
                       }
                       className="w-7 h-7 border border-outline-variant flex items-center justify-center"
@@ -741,7 +1111,9 @@ export default function ReserveClient({
                     <button
                       type="button"
                       onClick={() =>
-                        setAdults((a) => a + 1)
+                        setAdults(
+                          (a) => a + 1
+                        )
                       }
                       className="w-7 h-7 border border-outline-variant flex items-center justify-center"
                     >
@@ -753,6 +1125,7 @@ export default function ReserveClient({
                 </div>
 
                 {/* Children */}
+
                 <div className="flex items-center justify-between">
 
                   <span className="font-bold text-primary text-sm">
@@ -764,8 +1137,12 @@ export default function ReserveClient({
                     <button
                       type="button"
                       onClick={() =>
-                        setChildren((c) =>
-                          Math.max(0, c - 1)
+                        setChildren(
+                          (c) =>
+                            Math.max(
+                              0,
+                              c - 1
+                            )
                         )
                       }
                       className="w-7 h-7 border border-outline-variant flex items-center justify-center"
@@ -780,7 +1157,9 @@ export default function ReserveClient({
                     <button
                       type="button"
                       onClick={() =>
-                        setChildren((c) => c + 1)
+                        setChildren(
+                          (c) => c + 1
+                        )
                       }
                       className="w-7 h-7 border border-outline-variant flex items-center justify-center"
                     >
@@ -797,7 +1176,8 @@ export default function ReserveClient({
 
           </section>
 
-          {/* Checkout */}
+          {/* Checkout Form */}
+
           <section className="space-y-6">
 
             <h3 className="font-headline-md text-headline-md text-primary border-b border-outline-variant pb-4">
@@ -806,8 +1186,9 @@ export default function ReserveClient({
 
             <div className="space-y-4">
 
-              {/* Name */}
               <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+
+                {/* First Name */}
 
                 <div>
 
@@ -828,6 +1209,8 @@ export default function ReserveClient({
                   />
 
                 </div>
+
+                {/* Last Name */}
 
                 <div>
 
@@ -852,6 +1235,7 @@ export default function ReserveClient({
               </div>
 
               {/* Email */}
+
               <div>
 
                 <label className="font-label-caps text-[11px] mb-2 block">
@@ -873,6 +1257,7 @@ export default function ReserveClient({
               </div>
 
               {/* Payment Method */}
+
               <div className="pt-6">
 
                 <label className="font-label-caps text-[11px] mb-4 block">
@@ -932,6 +1317,7 @@ export default function ReserveClient({
             </div>
 
             {/* Security */}
+
             <div className="p-4 bg-surface-container-low rounded-lg flex gap-4 items-start">
 
               <span className="material-symbols-outlined text-secondary">
@@ -953,7 +1339,9 @@ export default function ReserveClient({
             </div>
 
             {/* Error */}
+
             {error && (
+
               <div className="p-4 bg-error-container border border-error/30 rounded-lg">
 
                 <p className="text-error text-sm">
@@ -961,15 +1349,16 @@ export default function ReserveClient({
                 </p>
 
               </div>
+
             )}
 
           </section>
 
         </div>
 
-        {/* =====================================================
-            RIGHT COLUMN
-        ===================================================== */}
+        {/* ================================================================ */}
+        {/* RIGHT COLUMN */}
+        {/* ================================================================ */}
 
         <aside className="lg:col-span-5">
 
@@ -980,23 +1369,25 @@ export default function ReserveClient({
             </h3>
 
             {nights > 0 ? (
+
               <>
 
                 <div className="space-y-4 border-b border-outline-variant pb-6 mb-6">
+
+                  {/* Room */}
 
                   <div className="flex justify-between items-center text-body-md">
 
                     <span className="text-on-surface-variant">
 
-                      {nights} Night
+                      {nights}{" "}
+                      Night
                       {nights !== 1
                         ? "s"
-                        : ""}
+                        : ""}{" "}
 
-                      {" "}
                       (AED{" "}
-                      {nightRate.toLocaleString()}
-                      {" "}
+                      {nightRate.toLocaleString()}{" "}
                       per night)
 
                     </span>
@@ -1007,6 +1398,8 @@ export default function ReserveClient({
                     </span>
 
                   </div>
+
+                  {/* Service Charge */}
 
                   <div className="flex justify-between items-center text-body-sm">
 
@@ -1021,6 +1414,8 @@ export default function ReserveClient({
 
                   </div>
 
+                  {/* VAT */}
+
                   <div className="flex justify-between items-center text-body-sm">
 
                     <span className="text-on-surface-variant">
@@ -1033,6 +1428,8 @@ export default function ReserveClient({
                     </span>
 
                   </div>
+
+                  {/* Tourism Fee */}
 
                   <div className="flex justify-between items-center text-body-sm">
 
@@ -1048,6 +1445,8 @@ export default function ReserveClient({
                   </div>
 
                 </div>
+
+                {/* Total */}
 
                 <div className="flex justify-between items-end mb-8">
 
@@ -1071,6 +1470,7 @@ export default function ReserveClient({
                 </div>
 
               </>
+
             ) : (
 
               <p className="text-on-surface-variant text-sm mb-8">
@@ -1080,6 +1480,7 @@ export default function ReserveClient({
             )}
 
             {/* Confirm & Pay */}
+
             <button
               type="button"
               onClick={handleConfirm}
@@ -1089,10 +1490,11 @@ export default function ReserveClient({
                 !email ||
                 loading
               }
-              className="w-full bg-primary text-on-primary py-4 px-8 font-bold text-body-lg hover:bg-secondary transition-all duration-300 active:scale-[0.98] flex items-center justify-center gap-3 group disabled:opacity-40"
+              className="w-full bg-primary text-on-primary py-4 px-8 font-bold text-body-lg hover:bg-secondary transition-all duration-300 active:scale-[0.98] flex items-center justify-center gap-3 group disabled:opacity-40 disabled:cursor-not-allowed"
             >
 
               {loading ? (
+
                 <>
                   <span className="material-symbols-outlined animate-spin">
                     progress_activity
@@ -1100,7 +1502,9 @@ export default function ReserveClient({
 
                   Processing…
                 </>
+
               ) : (
+
                 <>
                   Confirm &amp; Pay
 
@@ -1108,6 +1512,7 @@ export default function ReserveClient({
                     arrow_forward
                   </span>
                 </>
+
               )}
 
             </button>
