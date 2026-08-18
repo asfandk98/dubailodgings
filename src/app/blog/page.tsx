@@ -4,10 +4,13 @@ import { toAbsoluteImageUrl } from "@/lib/resolveImage";
 import Header from "@/components/Header";
 import Footer from "@/components/Footer";
 function getCategory(
-  category?: { name?: string } | string
+  post: { category?: { name?: string } | string }
 ): string {
-  if (typeof category === "string") return category;
-  return category?.name ?? "JOURNAL";
+  if (typeof post.category === "string") {
+    return post.category;
+  }
+
+  return post.category?.name ?? "JOURNAL";
 }
 
 function getImage(post: {
