@@ -160,14 +160,14 @@ export default function ContactPage() {
               <h3 className="font-headline-md text-headline-md text-primary mb-8">Contact Information</h3>
 
               <div className="space-y-8">
-                <DetailBlock icon="call" label="Phone" primary="+971 4 000 0000" secondary="Available 24/7 for active guests." />
-                <DetailBlock icon="mail" label="Email" primary="concierge@dubailodgings.com" secondary="Response within 4 business hours." />
+                <DetailBlock icon="call" label="Phone" primary="+971 50 247 7593" secondary="Available 24/7 for active guests." />
+                <DetailBlock icon="mail" label="Email" primary="info@dubailodgings.com" secondary="Response within 4 business hours." />
                 <DetailBlock
                   icon="location_on"
                   label="Location"
                   primary={
                     <>
-                      Level 15, Gate Avenue,
+                      HDS Tower JLT
                       <br />
                       DIFC, Dubai, UAE
                     </>
