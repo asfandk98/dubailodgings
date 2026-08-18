@@ -6,6 +6,7 @@ import Link from "next/link";
 import { toast } from "react-hot-toast";
 import { loginUser } from "@/lib/auth";
 
+import Logo from "@/components/Logo";
 export default function LoginPage() {
   const router = useRouter();
   const [form, setForm] = useState({ email: "", password: "" });
@@ -47,12 +48,7 @@ export default function LoginPage() {
     <div className="min-h-screen flex flex-col font-body-md text-body-md">
       <header className="fixed top-0 w-full z-50 bg-surface/80 backdrop-blur-md">
         <div className="flex justify-center items-center h-20 px-gutter max-w-container-max mx-auto">
-          <Link
-            href="/"
-            className="font-display-lg-mobile text-display-lg-mobile md:font-display-lg md:text-display-lg text-primary tracking-tight"
-          >
-            DUBAILODGINGS.COM
-          </Link>
+          <Logo />
         </div>
       </header>
 

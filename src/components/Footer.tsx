@@ -1,7 +1,7 @@
 "use client";
 
 import Link from "next/link";
-
+import Logo from "@/components/Logo";
 export default function Footer() {
   return (
     <footer className="w-full bg-primary-container border-t border-outline-variant">
@@ -10,12 +10,9 @@ export default function Footer() {
           
           {/* Brand */}
           <div className="min-w-0">
-            <Link
-              href="/"
-              className="block text-2xl sm:text-3xl font-serif font-bold text-on-primary tracking-tight mb-5"
-            >
-              DUBAILODGINGS.COM
-            </Link>
+           <div className="mb-5">
+  <Logo variant="light" />
+</div>
 
             <p className="max-w-sm text-on-primary-container text-body-sm leading-relaxed">
               Luxury Reimagined. The definitive platform for high-end

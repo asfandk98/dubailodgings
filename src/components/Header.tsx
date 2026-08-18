@@ -5,7 +5,7 @@ import Link from "next/link";
 import { usePathname, useRouter } from "next/navigation";
 import { toast } from "react-hot-toast";
 import { logoutUser } from "@/lib/auth";
-
+import Logo from "@/components/Logo";
 const DRAWER_LINKS = [
   { label: "Home", href: "/", icon: "home" },
   { label: "Hotels", href: "/hotels", icon: "hotel" },
@@ -100,47 +100,7 @@ export default function Header() {
                 menu
               </span>
             </button>
-
-           <Link
-  href="/"
-  className="flex flex-col justify-center leading-none group"
-  aria-label="Dubai Lodgings"
->
-  <span
-    className="
-      text-primary
-      font-display-lg-mobile
-      md:font-display-lg
-      text-[22px]
-      sm:text-[24px]
-      md:text-[28px]
-      tracking-[0.08em]
-      group-hover:text-secondary
-      transition-colors
-      duration-300
-    "
-  >
-    DUBAI
-  </span>
-
-  <span
-    className="
-      text-on-surface-variant
-      text-[8px]
-      sm:text-[9px]
-      md:text-[10px]
-      tracking-[0.35em]
-      font-medium
-      mt-1
-      ml-[2px]
-      group-hover:text-secondary
-      transition-colors
-      duration-300
-    "
-  >
-    LODGINGS
-  </span>
-</Link>
+           <Logo />
           </div>
 
           {/* ================= DESKTOP NAV ================= */}
