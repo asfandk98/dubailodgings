@@ -9,9 +9,11 @@ import { logoutUser } from "@/lib/auth";
 const DRAWER_LINKS = [
   { label: "Home", href: "/", icon: "home" },
   { label: "Hotels", href: "/hotels", icon: "hotel" },
+  { label: "About Us", href: "/about", icon: "info" },
   { label: "AI Trip Planner", href: "#", icon: "smart_toy" },
   { label: "My Bookings", href: "/dashboard/bookings", icon: "event_available" },
-{ label: "Contact Us", href: "/contact", icon: "contact_support" },];
+  { label: "Contact Us", href: "/contact", icon: "contact_support" },
+];
 
 interface AuthUser {
   name?: string;
@@ -99,24 +101,46 @@ export default function Header() {
               </span>
             </button>
 
-            {/* Logo */}
-            <Link
-              href="/"
-              className="
-                text-primary
-                tracking-tight
-                font-display-lg-mobile
-                text-[16px]
-                xs:text-[18px]
-                sm:text-[20px]
-                md:font-display-lg
-                md:text-display-lg
-                whitespace-nowrap
-                leading-none
-              "
-            >
-              DUBAILODGINGS.COM
-            </Link>
+           <Link
+  href="/"
+  className="flex flex-col justify-center leading-none group"
+  aria-label="Dubai Lodgings"
+>
+  <span
+    className="
+      text-primary
+      font-display-lg-mobile
+      md:font-display-lg
+      text-[22px]
+      sm:text-[24px]
+      md:text-[28px]
+      tracking-[0.08em]
+      group-hover:text-secondary
+      transition-colors
+      duration-300
+    "
+  >
+    DUBAI
+  </span>
+
+  <span
+    className="
+      text-on-surface-variant
+      text-[8px]
+      sm:text-[9px]
+      md:text-[10px]
+      tracking-[0.35em]
+      font-medium
+      mt-1
+      ml-[2px]
+      group-hover:text-secondary
+      transition-colors
+      duration-300
+    "
+  >
+    LODGINGS
+  </span>
+</Link>
           </div>
 
           {/* ================= DESKTOP NAV ================= */}
@@ -127,6 +151,12 @@ export default function Header() {
             >
               HOTELS
             </Link>
+             <Link
+    href="/about"
+    className="text-on-surface-variant hover:text-secondary transition-colors duration-300 font-label-caps"
+  >
+    ABOUT US
+  </Link>
 
              <Link
     href="/contact"
