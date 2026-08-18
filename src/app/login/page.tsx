@@ -7,6 +7,8 @@ import { toast } from "react-hot-toast";
 import { loginUser } from "@/lib/auth";
 
 import Logo from "@/components/Logo";
+import Header from "@/components/Header";
+import Footer from "@/components/Footer";
 export default function LoginPage() {
   const router = useRouter();
   const [form, setForm] = useState({ email: "", password: "" });
@@ -46,7 +48,7 @@ export default function LoginPage() {
 
   return (
     <div className="min-h-screen flex flex-col font-body-md text-body-md">
-      <header/>
+      <Header/>
 
       <main className="flex-grow flex items-center justify-center pt-24 pb-12 px-gutter">
         <div className="w-full max-w-5xl grid grid-cols-1 lg:grid-cols-2 bg-surface-container-lowest overflow-hidden shadow-2xl rounded-lg">
@@ -147,46 +149,7 @@ export default function LoginPage() {
           </div>
         </div>
       </main>
-
-      <footer className="w-full py-section-gap-sm bg-primary-container text-on-primary mt-auto">
-        <div className="grid grid-cols-1 md:grid-cols-4 gap-gutter px-gutter max-w-container-max mx-auto">
-          <div className="md:col-span-1">
-            <div className="font-display-lg-mobile text-display-lg-mobile text-on-primary mb-4">DL</div>
-            <p className="font-body-sm text-body-sm text-on-primary-container">
-              Curating the world&apos;s most exceptional living experiences in the heart of Dubai.
-            </p>
-          </div>
-          <div className="flex flex-col gap-2">
-            <h4 className="font-label-caps text-label-caps text-secondary-fixed mb-2 uppercase">Platform</h4>
-            <Link className="font-body-sm text-body-sm text-on-primary-container hover:text-secondary-fixed transition-colors" href="/about-us">
-              About Us
-            </Link>
-            <Link className="font-body-sm text-body-sm text-on-primary-container hover:text-secondary-fixed transition-colors" href="/terms-of-service">
-              Terms of Service
-            </Link>
-          </div>
-          <div className="flex flex-col gap-2">
-            <h4 className="font-label-caps text-label-caps text-secondary-fixed mb-2 uppercase">Support</h4>
-            <Link className="font-body-sm text-body-sm text-on-primary-container hover:text-secondary-fixed transition-colors" href="/privacy-policy">
-              Privacy Policy
-            </Link>
-            <Link className="font-body-sm text-body-sm text-on-primary-container hover:text-secondary-fixed transition-colors" href="/contact">
-              Contact
-            </Link>
-          </div>
-          <div className="flex flex-col gap-2">
-            <h4 className="font-label-caps text-label-caps text-secondary-fixed mb-2 uppercase">Connect</h4>
-            <div className="flex gap-4">
-              <span className="material-symbols-outlined text-on-primary-container cursor-pointer hover:text-secondary-fixed">language</span>
-              <span className="material-symbols-outlined text-on-primary-container cursor-pointer hover:text-secondary-fixed">public</span>
-              <span className="material-symbols-outlined text-on-primary-container cursor-pointer hover:text-secondary-fixed">share</span>
-            </div>
-          </div>
-        </div>
-        <div className="mt-12 text-center border-t border-outline/20 pt-8">
-          <p className="font-body-sm text-body-sm text-on-primary-container">© {new Date().getFullYear()} DUBAILODGINGS.COM. Luxury Reimagined.</p>
-        </div>
-      </footer>
+<Footer/>
     </div>
   );
 }
