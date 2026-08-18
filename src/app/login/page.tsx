@@ -46,11 +46,7 @@ export default function LoginPage() {
 
   return (
     <div className="min-h-screen flex flex-col font-body-md text-body-md">
-      <header className="fixed top-0 w-full z-50 bg-surface/80 backdrop-blur-md">
-        <div className="flex justify-center items-center h-20 px-gutter max-w-container-max mx-auto">
-          <Logo />
-        </div>
-      </header>
+      <header/>
 
       <main className="flex-grow flex items-center justify-center pt-24 pb-12 px-gutter">
         <div className="w-full max-w-5xl grid grid-cols-1 lg:grid-cols-2 bg-surface-container-lowest overflow-hidden shadow-2xl rounded-lg">
