@@ -50,3 +50,201 @@ body {
 .zebra-table tbody tr:hover {
   background-color: #eceef0;
 }
+
+        @keyframes heroZoom {
+          0% {
+            transform: scale(1);
+          }
+
+          50% {
+            transform: scale(1.07);
+          }
+
+          100% {
+            transform: scale(1);
+          }
+        }
+
+        @keyframes fadeDown {
+          0% {
+            opacity: 0;
+            transform: translateY(-25px);
+          }
+
+          100% {
+            opacity: 1;
+            transform: translateY(0);
+          }
+        }
+
+        @keyframes heroTitle {
+          0% {
+            opacity: 0;
+            transform: translateY(40px) scale(0.97);
+            filter: blur(8px);
+          }
+
+          100% {
+            opacity: 1;
+            transform: translateY(0) scale(1);
+            filter: blur(0);
+          }
+        }
+
+        @keyframes fadeUp {
+          0% {
+            opacity: 0;
+            transform: translateY(25px);
+          }
+
+          100% {
+            opacity: 1;
+            transform: translateY(0);
+          }
+        }
+
+        @keyframes searchPanel {
+          0% {
+            opacity: 0;
+            transform: translateY(40px) scale(0.96);
+          }
+
+          100% {
+            opacity: 1;
+            transform: translateY(0) scale(1);
+          }
+        }
+
+        @keyframes searchField {
+          0% {
+            opacity: 0;
+            transform: translateY(15px);
+          }
+
+          100% {
+            opacity: 1;
+            transform: translateY(0);
+          }
+        }
+
+        @keyframes buttonEntrance {
+          0% {
+            opacity: 0;
+            transform: translateY(15px);
+          }
+
+          100% {
+            opacity: 1;
+            transform: translateY(0);
+          }
+        }
+
+        @keyframes pulseSlow {
+          0%,
+          100% {
+            opacity: 0.25;
+            transform: translateX(-50%) scale(1);
+          }
+
+          50% {
+            opacity: 0.5;
+            transform: translateX(-50%) scale(1.15);
+          }
+        }
+
+        @keyframes floatingLight {
+          0%,
+          100% {
+            transform: translateY(0) translateX(0);
+            opacity: 0.2;
+          }
+
+          50% {
+            transform: translateY(-30px) translateX(15px);
+            opacity: 0.7;
+          }
+        }
+
+        @keyframes trust {
+          0% {
+            opacity: 0;
+          }
+
+          100% {
+            opacity: 1;
+          }
+        }
+
+        @keyframes scrollIndicator {
+          0%,
+          100% {
+            transform: translateY(0);
+            opacity: 0.5;
+          }
+
+          50% {
+            transform: translateY(8px);
+            opacity: 1;
+          }
+        }
+
+        .animate-hero-zoom {
+          animation: heroZoom 18s ease-in-out infinite;
+        }
+
+        .animate-fade-down {
+          animation: fadeDown 0.8s ease-out both;
+        }
+
+        .animate-hero-title {
+          animation: heroTitle 1s ease-out 0.15s both;
+        }
+
+        .animate-fade-up-delay {
+          animation: fadeUp 0.9s ease-out 0.5s both;
+        }
+
+        .animate-search-panel {
+          animation: searchPanel 0.9s cubic-bezier(0.22, 1, 0.36, 1) 0.65s both;
+        }
+
+        .animate-search-field {
+          animation: searchField 0.7s ease-out both;
+        }
+
+        .animate-button {
+          animation: buttonEntrance 0.7s ease-out 0.85s both;
+        }
+
+        .animate-pulse-slow {
+          animation: pulseSlow 6s ease-in-out infinite;
+        }
+
+        .animate-floating-light {
+          animation: floatingLight 6s ease-in-out infinite;
+        }
+
+        .animate-trust {
+          animation: trust 1s ease-out 1.4s both;
+        }
+
+        .animate-scroll-indicator {
+          animation: scrollIndicator 2s ease-in-out infinite;
+        }
+
+        @media (prefers-reduced-motion: reduce) {
+          .animate-hero-zoom,
+          .animate-fade-down,
+          .animate-hero-title,
+          .animate-fade-up-delay,
+          .animate-search-panel,
+          .animate-search-field,
+          .animate-button,
+          .animate-pulse-slow,
+          .animate-floating-light,
+          .animate-trust,
+          .animate-scroll-indicator {
+            animation: none !important;
+          }
+        }
+      
