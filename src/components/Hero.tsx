@@ -36,16 +36,36 @@ export default function Hero() {
 
   return (
     <>
-      <section className="relative h-[751px] flex items-center justify-center overflow-hidden">
-
+      <section
+        className="
+          relative
+          min-h-[850px]
+          sm:min-h-[780px]
+          md:h-[751px]
+          md:min-h-0
+          flex
+          items-center
+          justify-center
+          overflow-hidden
+          pt-20
+          md:pt-0
+        "
+      >
         {/* =========================================================
-            ANIMATED BACKGROUND
+            BACKGROUND
         ========================================================== */}
         <div className="absolute inset-0 z-0 overflow-hidden">
-
           {/* Main image */}
           <div
-            className="absolute inset-0 w-full h-full bg-cover bg-center animate-hero-zoom"
+            className="
+              absolute
+              inset-0
+              w-full
+              h-full
+              bg-cover
+              bg-center
+              animate-hero-zoom
+            "
             role="img"
             aria-label="Dubai skyline at sunset"
             style={{
@@ -54,20 +74,50 @@ export default function Hero() {
             }}
           />
 
-          {/* Dark cinematic overlay */}
-          <div className="absolute inset-0 bg-black/35" />
+          {/* Dark overlay */}
+          <div className="absolute inset-0 bg-black/40 md:bg-black/35" />
 
-          {/* Animated gradient overlay */}
-          <div className="absolute inset-0 bg-gradient-to-b from-black/20 via-black/20 to-black/65" />
+          {/* Gradient */}
+          <div className="absolute inset-0 bg-gradient-to-b from-black/30 via-black/20 to-black/75" />
 
           {/* Luxury glow */}
-          <div className="absolute top-1/4 left-1/2 -translate-x-1/2 w-[500px] h-[300px] rounded-full bg-secondary/10 blur-[120px] animate-pulse-slow" />
+          <div
+            className="
+              absolute
+              top-1/4
+              left-1/2
+              -translate-x-1/2
+              w-[280px]
+              h-[180px]
+              sm:w-[400px]
+              sm:h-[250px]
+              md:w-[500px]
+              md:h-[300px]
+              rounded-full
+              bg-secondary/10
+              blur-[90px]
+              md:blur-[120px]
+              animate-pulse-slow
+            "
+          />
 
-          {/* Floating light */}
-          <div className="absolute top-[25%] left-[15%] w-2 h-2 rounded-full bg-white/40 blur-[1px] animate-floating-light" />
+          {/* Floating lights */}
+          <div className="absolute top-[25%] left-[12%] w-2 h-2 rounded-full bg-white/40 blur-[1px] animate-floating-light" />
 
           <div
-            className="absolute top-[35%] right-[18%] w-3 h-3 rounded-full bg-secondary-fixed/40 blur-[2px] animate-floating-light"
+            className="
+              absolute
+              top-[35%]
+              right-[15%]
+              w-2
+              h-2
+              md:w-3
+              md:h-3
+              rounded-full
+              bg-secondary-fixed/40
+              blur-[2px]
+              animate-floating-light
+            "
             style={{ animationDelay: "2s" }}
           />
 
@@ -80,27 +130,92 @@ export default function Hero() {
         {/* =========================================================
             HERO CONTENT
         ========================================================== */}
-        <div className="relative z-10 w-full max-w-container-max px-gutter text-center text-white">
-
-          {/* Small eyebrow */}
-          <div className="animate-fade-down mb-5">
-            <span className="inline-flex items-center gap-2 px-4 py-2 rounded-full bg-white/10 backdrop-blur-md border border-white/20 text-xs md:text-sm tracking-[0.2em] uppercase">
+        <div
+          className="
+            relative
+            z-10
+            w-full
+            max-w-container-max
+            px-4
+            sm:px-6
+            md:px-gutter
+            text-center
+            text-white
+            py-10
+            md:py-0
+          "
+        >
+          {/* Eyebrow */}
+          <div className="animate-fade-down mb-4 md:mb-5">
+            <span
+              className="
+                inline-flex
+                items-center
+                gap-2
+                px-3
+                py-1.5
+                md:px-4
+                md:py-2
+                rounded-full
+                bg-white/10
+                backdrop-blur-md
+                border
+                border-white/20
+                text-[10px]
+                sm:text-xs
+                md:text-sm
+                tracking-[0.15em]
+                md:tracking-[0.2em]
+                uppercase
+              "
+            >
               <span className="w-1.5 h-1.5 rounded-full bg-secondary-fixed animate-pulse" />
+
               Luxury Hospitality in Dubai
             </span>
           </div>
 
           {/* Main heading */}
-          <h2 className="animate-hero-title font-display-lg-mobile md:font-display-lg text-display-lg-mobile md:text-display-lg mb-6 leading-tight drop-shadow-2xl">
+          <h2
+            className="
+              animate-hero-title
+              font-display-lg-mobile
+              md:font-display-lg
+              text-[38px]
+              leading-[1.05]
+              sm:text-[48px]
+              md:text-display-lg
+              mb-4
+              md:mb-6
+              drop-shadow-2xl
+              px-2
+            "
+          >
             Discover Dubai&apos;s Most
-            <br className="hidden md:block" />
+
+            <br />
+
             <span className="relative inline-block">
               Prestigious Stays
             </span>
           </h2>
 
           {/* Subtitle */}
-          <p className="animate-fade-up-delay max-w-2xl mx-auto text-white/80 text-sm md:text-base leading-relaxed mb-8">
+          <p
+            className="
+              animate-fade-up-delay
+              max-w-xl
+              md:max-w-2xl
+              mx-auto
+              text-white/80
+              text-sm
+              sm:text-base
+              leading-relaxed
+              mb-6
+              md:mb-8
+              px-3
+            "
+          >
             Experience exceptional hotels, unforgettable locations and
             world-class hospitality across the United Arab Emirates.
           </p>
@@ -108,28 +223,69 @@ export default function Hero() {
           {/* =========================================================
               SEARCH PANEL
           ========================================================== */}
-          <div className="animate-search-panel glass-panel max-w-5xl mx-auto rounded-2xl p-4 md:p-6 shadow-2xl mt-6 border border-white/20 backdrop-blur-xl">
-
-            <div className="grid grid-cols-1 md:grid-cols-4 gap-4">
-
+          <div
+            className="
+              animate-search-panel
+              glass-panel
+              w-full
+              max-w-5xl
+              mx-auto
+              rounded-xl
+              md:rounded-2xl
+              p-3
+              sm:p-4
+              md:p-6
+              shadow-2xl
+              mt-4
+              md:mt-6
+              border
+              border-white/20
+              backdrop-blur-xl
+            "
+          >
+            <div className="grid grid-cols-1 md:grid-cols-4 gap-0 md:gap-4">
               {/* LOCATION */}
               <div
-                className="animate-search-field flex flex-col text-left px-4 border-b md:border-b-0 md:border-r border-outline-variant/30 pb-4 md:pb-0"
+                className="
+                  animate-search-field
+                  flex
+                  flex-col
+                  text-left
+                  px-3
+                  sm:px-4
+                  py-3
+                  md:py-0
+                  border-b
+                  md:border-b-0
+                  md:border-r
+                  border-outline-variant/30
+                "
                 style={{ animationDelay: "0.25s" }}
               >
-                <label className="font-label-caps text-label-caps text-on-surface-variant mb-2">
+                <label className="font-label-caps text-[10px] sm:text-label-caps text-on-surface-variant mb-2">
                   LOCATION
                 </label>
 
                 <div className="flex items-center gap-2 text-primary group">
-                  <span className="material-symbols-outlined text-secondary transition-transform duration-300 group-hover:scale-125">
+                  <span className="material-symbols-outlined text-secondary text-[20px]">
                     location_on
                   </span>
 
                   <select
                     value={location}
                     onChange={(e) => setLocation(e.target.value)}
-                    className="bg-transparent border-none focus:ring-0 w-full text-body-md font-medium appearance-none cursor-pointer outline-none"
+                    className="
+                      bg-transparent
+                      border-none
+                      focus:ring-0
+                      w-full
+                      text-sm
+                      sm:text-body-md
+                      font-medium
+                      appearance-none
+                      cursor-pointer
+                      outline-none
+                    "
                   >
                     <option value="">Where to go?</option>
 
@@ -144,15 +300,28 @@ export default function Hero() {
 
               {/* CHECK IN */}
               <div
-                className="animate-search-field flex flex-col text-left px-4 border-b md:border-b-0 md:border-r border-outline-variant/30 pb-4 md:pb-0"
+                className="
+                  animate-search-field
+                  flex
+                  flex-col
+                  text-left
+                  px-3
+                  sm:px-4
+                  py-3
+                  md:py-0
+                  border-b
+                  md:border-b-0
+                  md:border-r
+                  border-outline-variant/30
+                "
                 style={{ animationDelay: "0.4s" }}
               >
-                <label className="font-label-caps text-label-caps text-on-surface-variant mb-2">
+                <label className="font-label-caps text-[10px] sm:text-label-caps text-on-surface-variant mb-2">
                   CHECK-IN
                 </label>
 
-                <div className="flex items-center gap-2 text-primary group">
-                  <span className="material-symbols-outlined text-secondary transition-transform duration-300 group-hover:scale-125">
+                <div className="flex items-center gap-2 text-primary">
+                  <span className="material-symbols-outlined text-secondary text-[20px]">
                     calendar_today
                   </span>
 
@@ -160,7 +329,17 @@ export default function Hero() {
                     value={checkIn}
                     onChange={(e) => setCheckIn(e.target.value)}
                     min={today}
-                    className="bg-transparent border-none focus:ring-0 w-full text-body-md font-medium [color-scheme:light] outline-none"
+                    className="
+                      bg-transparent
+                      border-none
+                      focus:ring-0
+                      w-full
+                      text-sm
+                      sm:text-body-md
+                      font-medium
+                      [color-scheme:light]
+                      outline-none
+                    "
                     type="date"
                   />
                 </div>
@@ -168,15 +347,28 @@ export default function Hero() {
 
               {/* CHECK OUT */}
               <div
-                className="animate-search-field flex flex-col text-left px-4 border-b md:border-b-0 md:border-r border-outline-variant/30 pb-4 md:pb-0"
+                className="
+                  animate-search-field
+                  flex
+                  flex-col
+                  text-left
+                  px-3
+                  sm:px-4
+                  py-3
+                  md:py-0
+                  border-b
+                  md:border-b-0
+                  md:border-r
+                  border-outline-variant/30
+                "
                 style={{ animationDelay: "0.55s" }}
               >
-                <label className="font-label-caps text-label-caps text-on-surface-variant mb-2">
+                <label className="font-label-caps text-[10px] sm:text-label-caps text-on-surface-variant mb-2">
                   CHECK-OUT
                 </label>
 
-                <div className="flex items-center gap-2 text-primary group">
-                  <span className="material-symbols-outlined text-secondary transition-transform duration-300 group-hover:scale-125">
+                <div className="flex items-center gap-2 text-primary">
+                  <span className="material-symbols-outlined text-secondary text-[20px]">
                     calendar_today
                   </span>
 
@@ -184,7 +376,17 @@ export default function Hero() {
                     value={checkOut}
                     onChange={(e) => setCheckOut(e.target.value)}
                     min={checkIn || today}
-                    className="bg-transparent border-none focus:ring-0 w-full text-body-md font-medium [color-scheme:light] outline-none"
+                    className="
+                      bg-transparent
+                      border-none
+                      focus:ring-0
+                      w-full
+                      text-sm
+                      sm:text-body-md
+                      font-medium
+                      [color-scheme:light]
+                      outline-none
+                    "
                     type="date"
                   />
                 </div>
@@ -192,22 +394,42 @@ export default function Hero() {
 
               {/* GUESTS */}
               <div
-                className="animate-search-field flex flex-col text-left px-4 pb-4 md:pb-0"
+                className="
+                  animate-search-field
+                  flex
+                  flex-col
+                  text-left
+                  px-3
+                  sm:px-4
+                  py-3
+                  md:py-0
+                "
                 style={{ animationDelay: "0.7s" }}
               >
-                <label className="font-label-caps text-label-caps text-on-surface-variant mb-2">
+                <label className="font-label-caps text-[10px] sm:text-label-caps text-on-surface-variant mb-2">
                   GUESTS
                 </label>
 
-                <div className="flex items-center gap-2 text-primary group">
-                  <span className="material-symbols-outlined text-secondary transition-transform duration-300 group-hover:scale-125">
+                <div className="flex items-center gap-2 text-primary">
+                  <span className="material-symbols-outlined text-secondary text-[20px]">
                     group
                   </span>
 
                   <select
                     value={guests}
                     onChange={(e) => setGuests(e.target.value)}
-                    className="bg-transparent border-none focus:ring-0 w-full text-body-md font-medium appearance-none cursor-pointer outline-none"
+                    className="
+                      bg-transparent
+                      border-none
+                      focus:ring-0
+                      w-full
+                      text-sm
+                      sm:text-body-md
+                      font-medium
+                      appearance-none
+                      cursor-pointer
+                      outline-none
+                    "
                   >
                     <option>1 Adult</option>
                     <option>2 Adults</option>
@@ -222,24 +444,81 @@ export default function Hero() {
             {/* SEARCH BUTTON */}
             <button
               onClick={handleSearch}
-              className="animate-button mt-5 bg-primary hover:bg-secondary-fixed hover:text-on-secondary-fixed transition-all duration-300 text-on-primary font-bold h-touch-target rounded-xl flex items-center justify-center gap-2 w-full md:w-auto md:mx-auto md:px-14 shadow-lg hover:shadow-2xl hover:-translate-y-1 active:translate-y-0 group"
+              className="
+                animate-button
+                mt-3
+                md:mt-5
+                bg-primary
+                hover:bg-secondary-fixed
+                hover:text-on-secondary-fixed
+                transition-all
+                duration-300
+                text-on-primary
+                font-bold
+                h-12
+                md:h-touch-target
+                rounded-lg
+                md:rounded-xl
+                flex
+                items-center
+                justify-center
+                gap-2
+                w-full
+                md:w-auto
+                md:mx-auto
+                md:px-14
+                shadow-lg
+                hover:shadow-2xl
+                hover:-translate-y-1
+                active:translate-y-0
+                group
+              "
             >
-              <span className="material-symbols-outlined transition-transform duration-300 group-hover:rotate-12 group-hover:scale-110">
+              <span className="material-symbols-outlined transition-transform duration-300 group-hover:rotate-12">
                 search
               </span>
 
-              <span>Search</span>
+              <span>Search Hotels</span>
 
-              <span className="material-symbols-outlined text-sm opacity-0 -ml-2 group-hover:opacity-100 group-hover:ml-0 transition-all duration-300">
+              <span
+                className="
+                  material-symbols-outlined
+                  text-sm
+                  opacity-0
+                  -ml-2
+                  group-hover:opacity-100
+                  group-hover:ml-0
+                  transition-all
+                  duration-300
+                "
+              >
                 arrow_forward
               </span>
             </button>
           </div>
 
-          {/* Trust indicators */}
-          <div className="animate-trust mt-7 flex flex-wrap justify-center items-center gap-5 md:gap-8 text-white/70 text-xs md:text-sm">
-
-            <div className="flex items-center gap-2">
+          {/* =========================================================
+              TRUST INDICATORS
+          ========================================================== */}
+          <div
+            className="
+              animate-trust
+              mt-5
+              md:mt-7
+              flex
+              flex-wrap
+              justify-center
+              items-center
+              gap-x-4
+              gap-y-2
+              md:gap-8
+              text-white/70
+              text-[11px]
+              sm:text-xs
+              md:text-sm
+            "
+          >
+            <div className="flex items-center gap-1.5 md:gap-2">
               <span className="material-symbols-outlined text-sm text-secondary-fixed">
                 verified
               </span>
@@ -248,7 +527,7 @@ export default function Hero() {
 
             <div className="hidden sm:block w-1 h-1 rounded-full bg-white/30" />
 
-            <div className="flex items-center gap-2">
+            <div className="flex items-center gap-1.5 md:gap-2">
               <span className="material-symbols-outlined text-sm text-secondary-fixed">
                 location_on
               </span>
@@ -257,7 +536,7 @@ export default function Hero() {
 
             <div className="hidden sm:block w-1 h-1 rounded-full bg-white/30" />
 
-            <div className="flex items-center gap-2">
+            <div className="flex items-center gap-1.5 md:gap-2">
               <span className="material-symbols-outlined text-sm text-secondary-fixed">
                 star
               </span>
@@ -269,12 +548,28 @@ export default function Hero() {
         {/* =========================================================
             SCROLL INDICATOR
         ========================================================== */}
-        <div className="absolute bottom-7 left-1/2 -translate-x-1/2 z-10 flex flex-col items-center gap-2 text-white/60 animate-scroll-indicator">
-          <span className="text-[10px] tracking-[0.25em] uppercase">
+        <div
+          className="
+            absolute
+            bottom-4
+            md:bottom-7
+            left-1/2
+            -translate-x-1/2
+            z-10
+            flex
+            flex-col
+            items-center
+            gap-1
+            md:gap-2
+            text-white/60
+            animate-scroll-indicator
+          "
+        >
+          <span className="text-[9px] md:text-[10px] tracking-[0.25em] uppercase">
             Explore
           </span>
 
-          <span className="material-symbols-outlined text-lg">
+          <span className="material-symbols-outlined text-base md:text-lg">
             keyboard_arrow_down
           </span>
         </div>
