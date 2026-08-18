@@ -179,12 +179,12 @@ export default async function BlogPage() {
                 </article>
               );
             })}
-<Footer />
+
           </div>
         )}
 
       </main>
-
+<Footer />
     </div>
   );
 }

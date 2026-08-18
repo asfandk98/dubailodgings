@@ -10,6 +10,7 @@ const DRAWER_LINKS = [
   { label: "Home", href: "/", icon: "home" },
   { label: "Hotels", href: "/hotels", icon: "hotel" },
   { label: "About Us", href: "/about", icon: "info" },
+  { label: "Blog", href: "/blog", icon: "article" },
   { label: "AI Trip Planner", href: "#", icon: "smart_toy" },
   { label: "My Bookings", href: "/dashboard/bookings", icon: "event_available" },
   { label: "Contact Us", href: "/contact", icon: "contact_support" },
@@ -124,7 +125,12 @@ export default function Header() {
   >
     CONTACT US
   </Link>
-
+  <Link
+    href="/blog"
+    className="text-on-surface-variant hover:text-secondary transition-colors duration-300 font-label-caps"
+  >
+    BLOG
+  </Link>
             <span className="text-on-surface-variant hover:text-secondary transition-colors duration-300 cursor-pointer font-label-caps">
               PLANNER
             </span>
