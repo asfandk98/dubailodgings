@@ -1,15 +1,20 @@
-import { API_BASE_URL } from "./api";
-
-const BACKEND_URL = API_BASE_URL.replace(/\/api\/?$/, "");
+import { API_BASE_URL } from "./config";
+const BACKEND_URL = API_BASE_URL
+  .replace(/\/api\/?$/, "")
+  .replace(/\/+$/, "");
 
 /**
- * Your API sometimes returns a full URL (image_url), sometimes an
- * ImageItem object ({ id, path, url }), and sometimes a relative
- * storage path (e.g. "hotels/xxxx.jpg" or "storage/hotels/xxxx.jpg").
+ * Converts Laravel image values into an absolute URL.
  *
- * This resolves all of those cases to an absolute URL on the API host,
- * instead of letting the browser resolve a relative path against the
- * frontend's own origin.
+ * Handles:
+ * - https://domain.com/storage/hotels/file.jpg
+ * - http://domain.com/storage/hotels/file.jpg
+ * - //domain.com/storage/hotels/file.jpg
+ * - hotels/file.jpg
+ * - storage/hotels/file.jpg
+ * - { url: "..." }
+ * - { path: "..." }
+ * - { image_url: "..." }
  */
 export function toAbsoluteImageUrl(value: unknown): string | null {
   if (!value) return null;
@@ -20,27 +25,54 @@ export function toAbsoluteImageUrl(value: unknown): string | null {
     raw = value.trim();
   } else if (typeof value === "object") {
     const obj = value as Record<string, unknown>;
+
     raw = String(
-      obj.url ?? obj.path ?? obj.image_url ?? obj.image ?? obj.src ?? ""
+      obj.url ??
+        obj.path ??
+        obj.image_url ??
+        obj.image ??
+        obj.src ??
+        ""
     ).trim();
   }
 
   if (!raw) return null;
 
-  // Already an absolute URL
-  if (/^https?:\/\//i.test(raw)) return raw;
+  // Fix malformed:
+  // https:/example.com
+  // http:/example.com
+  raw = raw.replace(
+    /^(https?):\/(?!\/)/i,
+    "$1://"
+  );
+
+  // If it is already a valid absolute URL,
+  // return it unchanged.
+  if (/^https?:\/\//i.test(raw)) {
+    return raw;
+  }
 
   // Protocol-relative URL
-  if (raw.startsWith("//")) return `https:${raw}`;
+  if (raw.startsWith("//")) {
+    return `https:${raw}`;
+  }
 
   // Remove leading slash
   raw = raw.replace(/^\/+/, "");
 
-  // Path already includes the storage/ or uploads/ prefix — don't double it up
-  if (raw.startsWith("storage/") || raw.startsWith("uploads/")) {
+  // Prevent accidental /api/storage/...
+  raw = raw.replace(/^api\/+/i, "");
+
+  // Already contains storage/
+  if (raw.startsWith("storage/")) {
     return `${BACKEND_URL}/${raw}`;
   }
 
-  // Otherwise assume it's a relative path under Laravel's public storage
+  // Already contains uploads/
+  if (raw.startsWith("uploads/")) {
+    return `${BACKEND_URL}/${raw}`;
+  }
+
+  // Normal Laravel storage path
   return `${BACKEND_URL}/storage/${raw}`;
 }

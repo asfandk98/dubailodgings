@@ -11,8 +11,7 @@ const DRAWER_LINKS = [
   { label: "Hotels", href: "/hotels", icon: "hotel" },
   { label: "AI Trip Planner", href: "#", icon: "smart_toy" },
   { label: "My Bookings", href: "/dashboard/bookings", icon: "event_available" },
-  { label: "Support", href: "/contact", icon: "contact_support" },
-];
+{ label: "Contact Us", href: "/contact", icon: "contact_support" },];
 
 interface AuthUser {
   name?: string;
@@ -129,6 +128,13 @@ export default function Header() {
               HOTELS
             </Link>
 
+             <Link
+    href="/contact"
+    className="text-on-surface-variant hover:text-secondary transition-colors duration-300 font-label-caps"
+  >
+    CONTACT US
+  </Link>
+
             <span className="text-on-surface-variant hover:text-secondary transition-colors duration-300 cursor-pointer font-label-caps">
               PLANNER
             </span>
@@ -140,6 +146,8 @@ export default function Header() {
               >
                 MY BOOKINGS
               </Link>
+
+              
             )}
           </nav>
 

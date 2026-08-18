@@ -29,7 +29,10 @@ export default function FeaturedHotels({ hotels }: Props) {
             const slug = hotel.slug ?? hotel.id;
            const image =
   toAbsoluteImageUrl(
-    hotel.image ?? hotel.image_url ?? hotel.thumbnail ?? ""
+    hotel.image_url ??
+      hotel.image ??
+      hotel.thumbnail ??
+      hotel.images?.[0]
   ) ?? "/images/hotel-placeholder.jpg";
             const name = hotel.name ?? hotel.title ?? "Luxury Hotel";
             const location = hotel.location ?? hotel.city ?? "UAE";

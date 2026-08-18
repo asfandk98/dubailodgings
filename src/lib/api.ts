@@ -4,6 +4,74 @@ import httpClient from "./httpClient";
 
 export { API_BASE_URL };
 
+const BACKEND_URL = API_BASE_URL
+  .replace(/\/api\/?$/, "")
+  .replace(/\/+$/, "");
+
+/**
+ * Converts any hotel image value returned by Laravel
+ * into a valid absolute image URL.
+ */
+export function toAbsoluteImageUrl(value: unknown): string | null {
+  if (!value) return null;
+
+  let raw = "";
+
+  if (typeof value === "string") {
+    raw = value.trim();
+  } else if (typeof value === "object") {
+    const obj = value as Record<string, unknown>;
+
+    raw = String(
+      obj.url ??
+      obj.path ??
+      obj.image_url ??
+      obj.image ??
+      obj.src ??
+      ""
+    ).trim();
+  }
+
+  if (!raw) return null;
+
+  // Fix malformed URLs such as:
+  // https:/example.com
+  // http:/example.com
+  raw = raw.replace(
+    /^(https?):\/(?!\/)/i,
+    "$1://"
+  );
+
+  // Already a proper absolute URL
+  if (/^https?:\/\//i.test(raw)) {
+    return raw;
+  }
+
+  // Protocol-relative URL
+  if (raw.startsWith("//")) {
+    return `https:${raw}`;
+  }
+
+  // Remove leading slashes
+  raw = raw.replace(/^\/+/, "");
+
+  // Prevent /api/storage/... from being generated
+  raw = raw.replace(/^api\/+/i, "");
+
+  // Already Laravel storage path
+  if (raw.startsWith("storage/")) {
+    return `${BACKEND_URL}/${raw}`;
+  }
+
+  // Already uploads path
+  if (raw.startsWith("uploads/")) {
+    return `${BACKEND_URL}/${raw}`;
+  }
+
+  // Normal Laravel storage path
+  return `${BACKEND_URL}/storage/${raw}`;
+}
+
 export interface ImageItem {
   id?: string | number;
   path?: string;
